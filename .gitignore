@@ -30,8 +30,11 @@ replay_pid*
 
 # Environment files
 .env
+.env.*
 backend/.env
+backend/.env.*
 frontend/.env
+frontend/.env.*
 
 # Node.js (for frontend)
 node_modules/
