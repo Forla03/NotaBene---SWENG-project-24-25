@@ -35,6 +35,7 @@ backend/.env
 backend/.env.*
 frontend/.env
 frontend/.env.*
+backend/docker-compose
 
 # Node.js (for frontend)
 node_modules/
