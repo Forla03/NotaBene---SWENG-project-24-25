@@ -1,0 +1,52 @@
+# === JAVA ===
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# === MAVEN ===
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# === SPRING BOOT ===
+.spring-boot-devtools.properties
+
+# === SENSITIVE FILES - NEVER COMMIT ===
+application-local.properties
+.env
+.env.local
+.env.*.local
+.env.production
+
+# === DOCKER ===
+docker-compose.override.yml
+
+# === IDE ===
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# === LOGS ===
+*.log
+logs/
