@@ -1,18 +1,11 @@
-import React, { useState } from 'react';
-import HomePage from './components/HomePage';
-import NotesList from './components/NotesList';
+import React from 'react';
+import NotesApp from './components/Notes/NotesApp';
 import './App.css';
 
 function App() {
-  const [page, setPage] = useState<'home' | 'notes'>('home');
-
   return (
     <div className="App">
-      {page === 'home' ? (
-        <HomePage goToNotes={() => setPage('notes')} />
-      ) : (
-        <NotesList />
-      )}
+      <NotesApp />
     </div>
   );
 }

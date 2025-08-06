@@ -11,6 +11,7 @@ const api = axios.create({
 
 export interface Note {
   id?: number;
+  title: string;
   content: string;
   author: string;
   createdAt?: string;
