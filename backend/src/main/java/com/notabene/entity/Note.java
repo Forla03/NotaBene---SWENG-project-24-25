@@ -23,15 +23,9 @@ public class Note {
     private String title;
     
     @NotBlank(message = "Content cannot be blank")
-    @Size(max = 10000, message = "Content cannot exceed 10000 characters")
+    @Size(max = 280, message = "Content cannot exceed 280 characters")
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
-    
-    @NotNull(message = "Priority cannot be null")
-    @Min(value = 1, message = "Priority must be at least 1")
-    @Max(value = 5, message = "Priority cannot exceed 5")
-    @Column(nullable = false)
-    private Integer priority = 1;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -52,9 +46,8 @@ public class Note {
     }
     
     // Constructor for tests and manual creation
-    public Note(String title, String content, Integer priority) {
+    public Note(String title, String content) {
         this.title = title;
         this.content = content;
-        this.priority = priority != null ? priority : 1;
     }
 }

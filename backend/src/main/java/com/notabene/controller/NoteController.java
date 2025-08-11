@@ -65,10 +65,4 @@ public class NoteController {
         List<NoteResponse> notes = noteService.searchNotes(q);
         return ResponseEntity.ok(notes);
     }
-    
-    @GetMapping("/priority/{priority}")
-    public ResponseEntity<List<NoteResponse>> getNotesByPriority(@PathVariable Integer priority) {
-        List<NoteResponse> notes = noteService.getNotesByPriority(priority);
-        return ResponseEntity.ok(notes);
-    }
 }

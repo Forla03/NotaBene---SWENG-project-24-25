@@ -12,7 +12,6 @@ public class NoteResponse {
     private Long id;
     private String title;
     private String content;
-    private Integer priority;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -20,7 +19,6 @@ public class NoteResponse {
         this.id = note.getId();
         this.title = note.getTitle();
         this.content = note.getContent();
-        this.priority = note.getPriority();
         this.createdAt = note.getCreatedAt();
         this.updatedAt = note.getUpdatedAt();
     }

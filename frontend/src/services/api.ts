@@ -13,9 +13,13 @@ export interface Note {
   id?: number;
   title: string;
   content: string;
-  author: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CreateNoteRequest {
+  title: string;
+  content: string;
 }
 
 export const notesApi = {
@@ -26,15 +30,24 @@ export const notesApi = {
   getNote: (id: number) => api.get<Note>(`/notes/${id}`),
   
   // Crea una nuova nota
-  createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
-    api.post<Note>('/notes', note),
+  createNote: (note: CreateNoteRequest) => 
+    api.post<Note>('/notes', {
+      title: note.title,
+      content: note.content
+    }),
   
   // Aggiorna una nota
-  updateNote: (id: number, note: Partial<Note>) => 
+  updateNote: (id: number, note: Partial<CreateNoteRequest>) => 
     api.put<Note>(`/notes/${id}`, note),
   
   // Elimina una nota
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
+  
+  // Cerca note
+  searchNotes: (query: string) => api.get<Note[]>(`/notes/search?q=${encodeURIComponent(query)}`),
+  
+  // Filtra per priorità
+  getNotesByPriority: (priority: number) => api.get<Note[]>(`/notes/priority/${priority}`),
 };
 
 export default api;

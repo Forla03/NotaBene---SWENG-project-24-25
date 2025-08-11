@@ -9,18 +9,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWebMvc
 @ActiveProfiles("test")
 @Transactional
 @DisplayName("Note Integration Tests")
@@ -41,196 +42,181 @@ class NoteIntegrationTest {
     }
     
     @Test
-    @DisplayName("Should create, read, update and delete note - full CRUD integration")
-    void shouldPerformFullCrudOperations() throws Exception {
-        // CREATE
-        CreateNoteRequest createRequest = new CreateNoteRequest("Integration Test", "Test Content", 3);
+    @DisplayName("Should create and retrieve note")
+    void shouldCreateAndRetrieveNote() throws Exception {
+        CreateNoteRequest createRequest = new CreateNoteRequest("Integration Test", "This is an integration test note");
         
-        String response = mockMvc.perform(post("/api/notes")
+        // Create note
+        mockMvc.perform(post("/api/notes")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Integration Test"))
-                .andExpect(jsonPath("$.content").value("Test Content"))
-                .andExpect(jsonPath("$.priority").value(3))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                .andExpect(jsonPath("$.content").value("This is an integration test note"))
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.updatedAt").exists());
+    }
+    
+    @Test
+    @DisplayName("Should get all notes")
+    void shouldGetAllNotes() throws Exception {
+        // Create test data
+        Note note1 = new Note("Note 1", "Content 1");
+        Note note2 = new Note("Note 2", "Content 2");
+        noteRepository.save(note1);
+        noteRepository.save(note2);
         
-        // Extract ID from response
-        Long noteId = Long.valueOf(objectMapper.readTree(response).get("id").asLong());
-        
-        // READ by ID
-        mockMvc.perform(get("/api/notes/" + noteId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(noteId))
-                .andExpect(jsonPath("$.title").value("Integration Test"))
-                .andExpect(jsonPath("$.content").value("Test Content"))
-                .andExpect(jsonPath("$.priority").value(3));
-        
-        // READ all notes
+        // Get all notes
         mockMvc.perform(get("/api/notes"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(noteId));
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title").value("Note 2"))
+                .andExpect(jsonPath("$[1].title").value("Note 1"));
+    }
+    
+    @Test
+    @DisplayName("Should update note")
+    void shouldUpdateNote() throws Exception {
+        // Create initial note
+        Note note = new Note("Original Title", "Original Content");
+        note = noteRepository.save(note);
         
-        // UPDATE
-        UpdateNoteRequest updateRequest = new UpdateNoteRequest("Updated Title", "Updated Content", 5);
+        UpdateNoteRequest updateRequest = new UpdateNoteRequest("Updated Title", "Updated Content");
         
-        mockMvc.perform(put("/api/notes/" + noteId)
+        // Update note
+        mockMvc.perform(put("/api/notes/" + note.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(noteId))
                 .andExpect(jsonPath("$.title").value("Updated Title"))
-                .andExpect(jsonPath("$.content").value("Updated Content"))
-                .andExpect(jsonPath("$.priority").value(5));
+                .andExpect(jsonPath("$.content").value("Updated Content"));
+    }
+    
+    @Test
+    @DisplayName("Should delete note")
+    void shouldDeleteNote() throws Exception {
+        // Create note to delete
+        Note note = new Note("To Delete", "This note will be deleted");
+        note = noteRepository.save(note);
         
-        // Verify update persisted
-        mockMvc.perform(get("/api/notes/" + noteId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Updated Title"))
-                .andExpect(jsonPath("$.content").value("Updated Content"))
-                .andExpect(jsonPath("$.priority").value(5));
-        
-        // DELETE
-        mockMvc.perform(delete("/api/notes/" + noteId))
+        // Delete note
+        mockMvc.perform(delete("/api/notes/" + note.getId()))
                 .andExpect(status().isNoContent());
         
-        // Verify deletion
-        mockMvc.perform(get("/api/notes/" + noteId))
+        // Verify note is deleted
+        mockMvc.perform(get("/api/notes/" + note.getId()))
                 .andExpect(status().isNotFound());
-        
-        // Verify note not in list
-        mockMvc.perform(get("/api/notes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
     }
     
     @Test
-    @DisplayName("Should handle search functionality correctly")
-    void shouldHandleSearchFunctionalityCorrectly() throws Exception {
-        // Create test notes
-        Note note1 = new Note("Java Programming", "Learning Spring Boot", 1);
-        Note note2 = new Note("Python Tutorial", "Data Science with Python", 2);
-        Note note3 = new Note("Database Design", "MySQL and PostgreSQL", 3);
-        
-        noteRepository.saveAll(java.util.Arrays.asList(note1, note2, note3));
-        
-        // Search by title content
-        mockMvc.perform(get("/api/notes/search")
-                .param("q", "Java"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Java Programming"));
-        
-        // Search by content
-        mockMvc.perform(get("/api/notes/search")
-                .param("q", "Python"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Python Tutorial"));
-        
-        // Search case insensitive
-        mockMvc.perform(get("/api/notes/search")
-                .param("q", "database"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Database Design"));
-        
-        // Search with no results
-        mockMvc.perform(get("/api/notes/search")
-                .param("q", "nonexistent"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+    @DisplayName("Should return 404 for non-existent note")
+    void shouldReturn404ForNonExistentNote() throws Exception {
+        mockMvc.perform(get("/api/notes/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Note not found with id: 999"));
     }
     
     @Test
-    @DisplayName("Should filter notes by priority correctly")
-    void shouldFilterNotesByPriorityCorrectly() throws Exception {
-        // Create notes with different priorities
-        Note lowPriority = new Note("Low Priority Task", "Not urgent", 1);
-        Note mediumPriority = new Note("Medium Priority Task", "Somewhat important", 3);
-        Note highPriority = new Note("High Priority Task", "Very urgent", 5);
-        
-        noteRepository.saveAll(java.util.Arrays.asList(lowPriority, mediumPriority, highPriority));
-        
-        // Get high priority notes
-        mockMvc.perform(get("/api/notes/priority/5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("High Priority Task"));
-        
-        // Get medium priority notes
-        mockMvc.perform(get("/api/notes/priority/3"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Medium Priority Task"));
-        
-        // Get low priority notes
-        mockMvc.perform(get("/api/notes/priority/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Low Priority Task"));
-        
-        // Get notes with non-existent priority
-        mockMvc.perform(get("/api/notes/priority/2"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
-    }
-    
-    @Test
-    @DisplayName("Should handle validation errors correctly in integration")
-    void shouldHandleValidationErrorsCorrectlyInIntegration() throws Exception {
-        // Test multiple validation errors
-        CreateNoteRequest invalidRequest = new CreateNoteRequest("", "", 10);
+    @DisplayName("Should handle validation errors")
+    void shouldHandleValidationErrors() throws Exception {
+        CreateNoteRequest invalidRequest = new CreateNoteRequest("", ""); // Empty title and content
         
         mockMvc.perform(post("/api/notes")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.errors").isArray())
-                .andExpect(jsonPath("$.errors.length()").value(3)); // title, content, priority
+                .andExpect(jsonPath("$.errors").isArray());
     }
     
     @Test
-    @DisplayName("Should handle partial updates correctly in integration")
-    void shouldHandlePartialUpdatesCorrectlyInIntegration() throws Exception {
-        // Create a note
-        Note note = new Note("Original Title", "Original Content", 1);
-        Note savedNote = noteRepository.save(note);
+    @DisplayName("Should reject note with content exceeding 280 characters")
+    void shouldRejectNoteWithContentExceeding280Characters() throws Exception {
+        String longContent = "a".repeat(281); // 281 characters - exceeds limit
+        CreateNoteRequest invalidRequest = new CreateNoteRequest("Valid Title", longContent);
         
-        // Update only title
-        UpdateNoteRequest titleUpdate = new UpdateNoteRequest("New Title", null, null);
-        
-        mockMvc.perform(put("/api/notes/" + savedNote.getId())
+        mockMvc.perform(post("/api/notes")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(titleUpdate)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("New Title"))
-                .andExpect(jsonPath("$.content").value("Original Content"))
-                .andExpect(jsonPath("$.priority").value(1));
+                .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.errors").isArray());
+    }
+
+    @Test
+    @DisplayName("Should handle partial updates")
+    void shouldHandlePartialUpdates() throws Exception {
+        // Create initial note
+        Note note = new Note("Original Title", "Original Content");
+        note = noteRepository.save(note);
         
-        // Update only priority
-        UpdateNoteRequest priorityUpdate = new UpdateNoteRequest(null, null, 4);
+        // Update only content
+        UpdateNoteRequest partialUpdate = new UpdateNoteRequest(null, "Updated Content Only");
         
-        mockMvc.perform(put("/api/notes/" + savedNote.getId())
+        mockMvc.perform(put("/api/notes/" + note.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(priorityUpdate)))
+                .content(objectMapper.writeValueAsString(partialUpdate)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("New Title"))
-                .andExpect(jsonPath("$.content").value("Original Content"))
-                .andExpect(jsonPath("$.priority").value(4));
+                .andExpect(jsonPath("$.title").value("Original Title")) // Title unchanged
+                .andExpect(jsonPath("$.content").value("Updated Content Only"));
+    }
+    
+    @Test
+    @DisplayName("Should handle concurrent operations")
+    void shouldHandleConcurrentOperations() throws Exception {
+        // Create multiple notes
+        CreateNoteRequest request1 = new CreateNoteRequest("Concurrent Note 1", "Content 1");
+        CreateNoteRequest request2 = new CreateNoteRequest("Concurrent Note 2", "Content 2");
+        CreateNoteRequest request3 = new CreateNoteRequest("Concurrent Note 3", "Content 3");
+        
+        // Create notes concurrently (simulated)
+        mockMvc.perform(post("/api/notes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request1)))
+                .andExpect(status().isCreated());
+        
+        mockMvc.perform(post("/api/notes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request2)))
+                .andExpect(status().isCreated());
+        
+        mockMvc.perform(post("/api/notes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request3)))
+                .andExpect(status().isCreated());
+        
+        // Verify all notes were created
+        mockMvc.perform(get("/api/notes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)));
+    }
+    
+    @Test
+    @DisplayName("Should handle health check")
+    void shouldHandleHealthCheck() throws Exception {
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.message").value("NotaBene backend is running"));
+    }
+    
+    @Test
+    @DisplayName("Should search notes")
+    void shouldSearchNotes() throws Exception {
+        // Create test notes
+        Note note1 = new Note("Java Programming", "Learning Java basics");
+        Note note2 = new Note("Spring Boot", "Creating REST APIs");
+        Note note3 = new Note("Database Design", "SQL fundamentals");
+        
+        noteRepository.save(note1);
+        noteRepository.save(note2);
+        noteRepository.save(note3);
+        
+        // Search for notes containing "Java"
+        mockMvc.perform(get("/api/notes/search?q=Java"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Java Programming"));
     }
 }

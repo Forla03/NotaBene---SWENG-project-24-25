@@ -43,13 +43,13 @@ class NoteServiceTest {
     
     @BeforeEach
     void setUp() {
-        sampleNote = new Note("Test Note", "Test Content", 1);
+        sampleNote = new Note("Test Note", "Test Content");
         sampleNote.setId(1L);
         sampleNote.setCreatedAt(LocalDateTime.now());
         sampleNote.setUpdatedAt(LocalDateTime.now());
         
-        validCreateRequest = new CreateNoteRequest("Test Note", "Test Content", 1);
-        validUpdateRequest = new UpdateNoteRequest("Updated Title", "Updated Content", 2);
+        validCreateRequest = new CreateNoteRequest("Test Note", "Test Content");
+        validUpdateRequest = new UpdateNoteRequest("Updated Title", "Updated Content");
     }
     
     @Test
@@ -63,7 +63,6 @@ class NoteServiceTest {
         assertEquals(1L, result.getId());
         assertEquals("Test Note", result.getTitle());
         assertEquals("Test Content", result.getContent());
-        assertEquals(1, result.getPriority());
         
         verify(noteRepository).save(any(Note.class));
     }
@@ -134,7 +133,7 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should update note successfully")
     void shouldUpdateNoteSuccessfully() {
-        Note updatedNote = new Note("Updated Title", "Updated Content", 2);
+        Note updatedNote = new Note("Updated Title", "Updated Content");
         updatedNote.setId(1L);
         updatedNote.setCreatedAt(sampleNote.getCreatedAt());
         updatedNote.setUpdatedAt(LocalDateTime.now());
@@ -148,7 +147,6 @@ class NoteServiceTest {
         assertEquals(1L, result.getId());
         assertEquals("Updated Title", result.getTitle());
         assertEquals("Updated Content", result.getContent());
-        assertEquals(2, result.getPriority());
         
         verify(noteRepository).findById(1L);
         verify(noteRepository).save(any(Note.class));
@@ -157,7 +155,7 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should update note partially")
     void shouldUpdateNotePartially() {
-        UpdateNoteRequest partialUpdate = new UpdateNoteRequest(null, "Updated Content Only", null);
+        UpdateNoteRequest partialUpdate = new UpdateNoteRequest(null, "Updated Content Only");
         
         when(noteRepository.findById(1L)).thenReturn(Optional.of(sampleNote));
         when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
@@ -167,7 +165,6 @@ class NoteServiceTest {
         assertNotNull(result);
         assertEquals("Test Note", result.getTitle()); // Should remain unchanged
         assertEquals("Updated Content Only", result.getContent()); // Should be updated
-        assertEquals(1, result.getPriority()); // Should remain unchanged
         
         verify(noteRepository).findById(1L);
         verify(noteRepository).save(any(Note.class));
@@ -176,7 +173,7 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should ignore blank strings in update")
     void shouldIgnoreBlankStringsInUpdate() {
-        UpdateNoteRequest updateWithBlanks = new UpdateNoteRequest("", "   ", 2);
+        UpdateNoteRequest updateWithBlanks = new UpdateNoteRequest("", "   ");
         
         when(noteRepository.findById(1L)).thenReturn(Optional.of(sampleNote));
         when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
@@ -186,7 +183,6 @@ class NoteServiceTest {
         assertNotNull(result);
         assertEquals("Test Note", result.getTitle()); // Should remain unchanged
         assertEquals("Test Content", result.getContent()); // Should remain unchanged
-        assertEquals(2, result.getPriority()); // Should be updated
         
         verify(noteRepository).findById(1L);
         verify(noteRepository).save(any(Note.class));
@@ -248,34 +244,6 @@ class NoteServiceTest {
         assertEquals("Test Note", result.get(0).getTitle());
         
         verify(noteRepository).searchNotes("test");
-    }
-    
-    @Test
-    @DisplayName("Should get notes by priority successfully")
-    void shouldGetNotesByPrioritySuccessfully() {
-        List<Note> priorityNotes = Arrays.asList(sampleNote);
-        when(noteRepository.findByPriority(1)).thenReturn(priorityNotes);
-        
-        List<NoteResponse> result = noteService.getNotesByPriority(1);
-        
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(1, result.get(0).getPriority());
-        
-        verify(noteRepository).findByPriority(1);
-    }
-    
-    @Test
-    @DisplayName("Should return empty list when no notes found by priority")
-    void shouldReturnEmptyListWhenNoNotesFoundByPriority() {
-        when(noteRepository.findByPriority(5)).thenReturn(Arrays.asList());
-        
-        List<NoteResponse> result = noteService.getNotesByPriority(5);
-        
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        
-        verify(noteRepository).findByPriority(5);
     }
     
     @Test

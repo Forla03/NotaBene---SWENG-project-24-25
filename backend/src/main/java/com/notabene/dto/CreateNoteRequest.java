@@ -13,16 +13,11 @@ public class CreateNoteRequest {
     private String title;
     
     @NotBlank(message = "Content cannot be blank")
-    @Size(max = 10000, message = "Content cannot exceed 10000 characters")
+    @Size(max = 280, message = "Content cannot exceed 280 characters")
     private String content;
     
-    @Min(value = 1, message = "Priority must be at least 1")
-    @Max(value = 5, message = "Priority cannot exceed 5")
-    private Integer priority = 1;
-    
-    public CreateNoteRequest(String title, String content, Integer priority) {
+    public CreateNoteRequest(String title, String content) {
         this.title = title;
         this.content = content;
-        this.priority = priority != null ? priority : 1;
     }
 }

@@ -24,7 +24,7 @@ public class NoteService {
     private final NoteRepository noteRepository;
     
     public NoteResponse createNote(CreateNoteRequest request) {
-        Note note = new Note(request.getTitle(), request.getContent(), request.getPriority());
+        Note note = new Note(request.getTitle(), request.getContent());
         Note savedNote = noteRepository.save(note);
         return NoteResponse.fromEntity(savedNote);
     }
@@ -65,9 +65,6 @@ public class NoteService {
         if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
             note.setContent(request.getContent());
         }
-        if (request.getPriority() != null) {
-            note.setPriority(request.getPriority());
-        }
         
         Note updatedNote = noteRepository.save(note);
         return NoteResponse.fromEntity(updatedNote);
@@ -83,14 +80,6 @@ public class NoteService {
     @Transactional(readOnly = true)
     public List<NoteResponse> searchNotes(String search) {
         return noteRepository.searchNotes(search)
-                .stream()
-                .map(NoteResponse::fromEntity)
-                .collect(Collectors.toList());
-    }
-    
-    @Transactional(readOnly = true)
-    public List<NoteResponse> getNotesByPriority(Integer priority) {
-        return noteRepository.findByPriority(priority)
                 .stream()
                 .map(NoteResponse::fromEntity)
                 .collect(Collectors.toList());

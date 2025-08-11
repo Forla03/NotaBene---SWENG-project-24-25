@@ -48,12 +48,11 @@ class NoteControllerTest {
         sampleNoteResponse.setId(1L);
         sampleNoteResponse.setTitle("Test Note");
         sampleNoteResponse.setContent("Test Content");
-        sampleNoteResponse.setPriority(1);
         sampleNoteResponse.setCreatedAt(LocalDateTime.now());
         sampleNoteResponse.setUpdatedAt(LocalDateTime.now());
         
-        validCreateRequest = new CreateNoteRequest("Test Note", "Test Content", 1);
-        validUpdateRequest = new UpdateNoteRequest("Updated Title", "Updated Content", 2);
+        validCreateRequest = new CreateNoteRequest("Test Note", "Test Content");
+        validUpdateRequest = new UpdateNoteRequest("Updated Title", "Updated Content");
     }
     
     @Test
@@ -67,8 +66,7 @@ class NoteControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.title").value("Test Note"))
-                .andExpect(jsonPath("$.content").value("Test Content"))
-                .andExpect(jsonPath("$.priority").value(1));
+                .andExpect(jsonPath("$.content").value("Test Content"));
         
         verify(noteService).createNote(any(CreateNoteRequest.class));
     }
@@ -76,7 +74,7 @@ class NoteControllerTest {
     @Test
     @DisplayName("POST /api/notes - Should fail with blank title")
     void shouldFailWithBlankTitle() throws Exception {
-        CreateNoteRequest invalidRequest = new CreateNoteRequest("", "Test Content", 1);
+        CreateNoteRequest invalidRequest = new CreateNoteRequest("", "Test Content");
         
         mockMvc.perform(post("/api/notes")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -91,37 +89,7 @@ class NoteControllerTest {
     @Test
     @DisplayName("POST /api/notes - Should fail with blank content")
     void shouldFailWithBlankContent() throws Exception {
-        CreateNoteRequest invalidRequest = new CreateNoteRequest("Test Title", "", 1);
-        
-        mockMvc.perform(post("/api/notes")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.errors").isArray());
-        
-        verify(noteService, never()).createNote(any(CreateNoteRequest.class));
-    }
-    
-    @Test
-    @DisplayName("POST /api/notes - Should fail with priority below minimum")
-    void shouldFailWithPriorityBelowMinimum() throws Exception {
-        CreateNoteRequest invalidRequest = new CreateNoteRequest("Test Title", "Test Content", 0);
-        
-        mockMvc.perform(post("/api/notes")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.errors").isArray());
-        
-        verify(noteService, never()).createNote(any(CreateNoteRequest.class));
-    }
-    
-    @Test
-    @DisplayName("POST /api/notes - Should fail with priority above maximum")
-    void shouldFailWithPriorityAboveMaximum() throws Exception {
-        CreateNoteRequest invalidRequest = new CreateNoteRequest("Test Title", "Test Content", 6);
+        CreateNoteRequest invalidRequest = new CreateNoteRequest("Test Title", "");
         
         mockMvc.perform(post("/api/notes")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -199,7 +167,6 @@ class NoteControllerTest {
         updatedResponse.setId(1L);
         updatedResponse.setTitle("Updated Title");
         updatedResponse.setContent("Updated Content");
-        updatedResponse.setPriority(2);
         
         when(noteService.updateNote(eq(1L), any(UpdateNoteRequest.class))).thenReturn(updatedResponse);
         
@@ -209,8 +176,7 @@ class NoteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.title").value("Updated Title"))
-                .andExpect(jsonPath("$.content").value("Updated Content"))
-                .andExpect(jsonPath("$.priority").value(2));
+                .andExpect(jsonPath("$.content").value("Updated Content"));
         
         verify(noteService).updateNote(eq(1L), any(UpdateNoteRequest.class));
     }
@@ -270,17 +236,5 @@ class NoteControllerTest {
         verify(noteService).searchNotes("test");
     }
     
-    @Test
-    @DisplayName("GET /api/notes/priority/{priority} - Should get notes by priority successfully")
-    void shouldGetNotesByPrioritySuccessfully() throws Exception {
-        List<NoteResponse> priorityNotes = Arrays.asList(sampleNoteResponse);
-        when(noteService.getNotesByPriority(1)).thenReturn(priorityNotes);
-        
-        mockMvc.perform(get("/api/notes/priority/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].priority").value(1));
-        
-        verify(noteService).getNotesByPriority(1);
-    }
+    
 }

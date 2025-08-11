@@ -16,8 +16,6 @@ const NotesList: React.FC<NotesListProps> = ({ onCreateNote, notes, onDeleteNote
     if (window.confirm('Sei sicuro di voler eliminare questa nota?')) {
       try {
         onDeleteNote(id);
-        // Quando avrai il backend, sostituisci con:
-        // await notesApi.deleteNote(id);
       } catch (err) {
         console.error('Error deleting note:', err);
         alert('Errore nell\'eliminazione della nota');
@@ -49,9 +47,8 @@ const NotesList: React.FC<NotesListProps> = ({ onCreateNote, notes, onDeleteNote
           notes.map((note) => (
             <div key={note.id} className="note-card">
               <div className="note-header">
-                <div className="note-title-author">
+                <div className="note-title-section">
                   <h3 className="note-title">{note.title}</h3>
-                  <span className="note-author">@{note.author}</span>
                 </div>
                 <div className="note-dates">
                   <span className="note-date">

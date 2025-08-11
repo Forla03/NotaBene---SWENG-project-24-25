@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Note } from '../../services/api';
+import { Note, notesApi, CreateNoteRequest } from '../../services/api';
 import './CreateNote.css';
 
 interface CreateNoteProps {
@@ -8,44 +8,45 @@ interface CreateNoteProps {
 }
 
 const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
-  const [newNote, setNewNote] = useState({ title: '', content: '', author: '' });
+  const [newNote, setNewNote] = useState<CreateNoteRequest>({ 
+    title: '', 
+    content: ''
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNote.title.trim() || !newNote.content.trim() || !newNote.author.trim()) {
-      alert('Compilare tutti i campi');
+    setError(null);
+    
+    if (!newNote.title.trim() || !newNote.content.trim()) {
+      setError('Titolo e contenuto sono obbligatori');
       return;
     }
     if (newNote.content.length > 280) {
-      alert('Il contenuto non può superare i 280 caratteri');
+      setError('Il contenuto non può superare i 280 caratteri');
       return;
     }
-    if (newNote.title.length > 100) {
-      alert('Il titolo non può superare i 100 caratteri');
+    if (newNote.title.length > 255) {
+      setError('Il titolo non può superare i 255 caratteri');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Per ora simula la creazione
-      const tempNote: Note = {
-        id: Date.now(),
-        title: newNote.title,
-        content: newNote.content,
-        author: newNote.author,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      onNoteCreated(tempNote);
-      setNewNote({ title: '', content: '', author: '' });
-      
-      // Quando avrai il backend, sostituisci con:
-      // await notesApi.createNote(newNote);
-    } catch (err) {
+      // Chiama il backend per creare la nota
+      const response = await notesApi.createNote(newNote);
+      onNoteCreated(response.data);
+      setNewNote({ title: '', content: '' });
+    } catch (err: any) {
       console.error('Error creating note:', err);
-      alert('Errore nella creazione della nota');
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.response?.data?.errors) {
+        setError(err.response.data.errors.join(', '));
+      } else {
+        setError('Errore nella creazione della nota. Verifica che il backend sia avviato.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -61,18 +62,18 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="create-note-form">
-        <div className="form-group">
-          <label htmlFor="author">Il tuo nome</label>
-          <input
-            id="author"
-            type="text"
-            placeholder="Inserisci il tuo nome"
-            value={newNote.author}
-            onChange={(e) => setNewNote({ ...newNote, author: e.target.value })}
-            className="author-input"
-            disabled={isSubmitting}
-          />
-        </div>
+        {error && (
+          <div className="error-message" style={{
+            backgroundColor: '#fee',
+            color: '#c33',
+            padding: '10px',
+            borderRadius: '4px',
+            marginBottom: '20px',
+            border: '1px solid #fcc'
+          }}>
+            {error}
+          </div>
+        )}
         
         <div className="form-group">
           <label htmlFor="title">Titolo della nota</label>
@@ -82,11 +83,11 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
             placeholder="Scrivi il titolo della tua nota..."
             value={newNote.title}
             onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-            maxLength={100}
+            maxLength={255}
             className="title-input"
             disabled={isSubmitting}
           />
-          <div className="char-count">{newNote.title.length}/100</div>
+          <div className="char-count">{newNote.title.length}/255</div>
         </div>
         
         <div className="form-group">
@@ -109,7 +110,6 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
           <div className="note-preview">
             <div className="preview-header">
               <h4>{newNote.title || 'Titolo della nota'}</h4>
-              <span className="preview-author">@{newNote.author || 'nomeutente'}</span>
             </div>
             <p className="preview-content">
               {newNote.content || 'Il contenuto della nota apparirà qui...'}
@@ -124,7 +124,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
           <button 
             type="submit" 
             className="submit-btn"
-            disabled={isSubmitting || !newNote.title.trim() || !newNote.content.trim() || !newNote.author.trim()}
+            disabled={isSubmitting || !newNote.title.trim() || !newNote.content.trim()}
           >
             {isSubmitting ? 'Creazione...' : 'Crea Nota'}
           </button>
