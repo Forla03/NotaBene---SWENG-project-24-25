@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import HomePage from './components/HomePage';
-import NotesList from './components/NotesList';
+import NotesApp from './components/Notes/NotesApp';
 import './App.css';
 
 function App() {
@@ -11,7 +11,7 @@ function App() {
       {page === 'home' ? (
         <HomePage goToNotes={() => setPage('notes')} />
       ) : (
-        <NotesList />
+        <NotesApp />
       )}
     </div>
   );
