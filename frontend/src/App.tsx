@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import HomePage from './components/Home/HomePage';
-import NotesList from './components/NotesList';
+import NotesApp from './components/Notes/NotesApp';
 import Register from './components/Register/Register';
-import Login from './components/Login/Login'; // importa Login
+import Login from './components/Login/Login';
+import './App.css';
 
 const App: React.FC = () => {
   const [page, setPage] = useState<'home' | 'notes' | 'register' | 'login'>('home');
@@ -52,7 +53,7 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           isLoggedIn={isLoggedIn}
           username={username}
-          onLoginClick={handleLoginClick}  // modifica: mostra login
+          onLoginClick={handleLoginClick}
           onRegisterClick={handleRegister}
         />
       )}
@@ -64,7 +65,7 @@ const App: React.FC = () => {
         />
       )}
 
-      {page === 'notes' && <NotesList />}
+      {page === 'notes' && <NotesApp />}
       
       {page === 'register' && (
         <Register 

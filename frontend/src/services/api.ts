@@ -3,8 +3,7 @@ import axios from 'axios';
 // ====================
 // ✅ CONFIG BASE
 // ====================
-const API_BASE_URL =
-  process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8080/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
 // ====================
 // ✅ INSTANCE AXIOS
@@ -46,10 +45,15 @@ api.interceptors.request.use((config) => {
 // ====================
 export interface Note {
   id?: number;
+  title: string;
   content: string;
-  author: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CreateNoteRequest {
+  title: string;
+  content: string;
 }
 
 export interface LoginPayload {
@@ -74,6 +78,12 @@ export const notesApi = {
   updateNote: (id: number, note: Partial<Note>) =>
     api.put<Note>(`/notes/${id}`, note),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
+  
+  // Cerca note
+  searchNotes: (query: string) => api.get<Note[]>(`/notes/search?q=${encodeURIComponent(query)}`),
+  
+  // Filtra per priorità
+  getNotesByPriority: (priority: number) => api.get<Note[]>(`/notes/priority/${priority}`),
 };
 
 // ====================
