@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Note, notesApi } from '../services/api';
+import api, { Note, notesApi } from '../services/api';
 import './NotesList.css';
 
 const NotesList: React.FC = () => {
