@@ -1,0 +1,95 @@
+/* Stili per l'header e la homepage */
+.homepage-container {
+    font-family: Arial, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid #eaeaea;
+    margin-bottom: 40px;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+  
+  .auth-nav button {
+    margin-left: 10px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+  }
+  
+  .login-button {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .login-button:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .register-button {
+    background-color: #2c3e50;
+    color: white;
+  }
+  
+  .register-button:hover {
+    background-color: #1a252f;
+  }
+  
+  .logout-button {
+    background-color: #e74c3c;
+    color: white;
+  }
+  
+  .logout-button:hover {
+    background-color: #c0392b;
+  }
+  
+  .notes-button, .create-notes-button {
+    background-color: #3498db;
+    color: white;
+  }
+  
+  .notes-button:hover, .create-notes-button:hover {
+    background-color: #2980b9;
+  }
+  
+  .user-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .welcome-message {
+    font-weight: 500;
+    color: #2c3e50;
+  }
+  
+  .homepage-content {
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .homepage-content h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+  }
+  
+  .homepage-content p {
+    color: #7f8c8d;
+    margin-bottom: 30px;
+    font-size: 18px;
+  }
