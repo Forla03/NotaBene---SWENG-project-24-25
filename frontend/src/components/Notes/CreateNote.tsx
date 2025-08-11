@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { Note, notesApi, CreateNoteRequest } from '../../services/api';
 import './CreateNote.css';
 
@@ -7,7 +7,7 @@ interface CreateNoteProps {
   onCancel: () => void;
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
+const CreateNote = ({ onNoteCreated, onCancel }: CreateNoteProps) => {
   const [newNote, setNewNote] = useState<CreateNoteRequest>({ 
     title: '', 
     content: ''
@@ -15,7 +15,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     

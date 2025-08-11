@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import NotesList from './NotesList';
 import CreateNote from './CreateNote';
 import { Note, notesApi } from '../../services/api';
 
 type View = 'list' | 'create';
 
-const NotesApp: React.FC = () => {
+const NotesApp = () => {
   const [currentView, setCurrentView] = useState<View>('list');
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,4 +1,3 @@
-import React from 'react';
 import './Homepage.css'
 
 type HomePageProps = {
@@ -10,14 +9,14 @@ type HomePageProps = {
   onRegisterClick: () => void;
 };
 
-const HomePage: React.FC<HomePageProps> = ({ 
+const HomePage = ({ 
   goToNotes, 
   onLogout, 
   isLoggedIn, 
   username, 
   onLoginClick, 
   onRegisterClick 
-}) => {
+}: HomePageProps) => {
   return (
     <div className="homepage-container">
       {/* Header con gestione autenticazione */}

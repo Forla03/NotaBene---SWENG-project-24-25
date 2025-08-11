@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import HomePage from './components/Home/HomePage';
 import NotesApp from './components/Notes/NotesApp';
 import Register from './components/Register/Register';
 import Login from './components/Login/Login';
 import './App.css';
 
-const App: React.FC = () => {
+const App = () => {
   const [page, setPage] = useState<'home' | 'notes' | 'register' | 'login'>('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState<string | undefined>(undefined);

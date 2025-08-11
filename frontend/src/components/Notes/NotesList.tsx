@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Note, notesApi } from '../../services/api';
 import './NotesList.css';
 
@@ -8,7 +8,7 @@ interface NotesListProps {
   onDeleteNote: (id: number) => void;
 }
 
-const NotesList: React.FC<NotesListProps> = ({ onCreateNote, notes, onDeleteNote }) => {
+const NotesList = ({ onCreateNote, notes, onDeleteNote }: NotesListProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

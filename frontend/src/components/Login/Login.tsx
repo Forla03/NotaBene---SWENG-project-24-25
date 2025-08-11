@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { authApi } from "../../services/api";
 import "./Login.css";
 
@@ -12,7 +12,7 @@ export default function Login({ onLoginSuccess, onCancel }: LoginProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setError(null);
     try {
