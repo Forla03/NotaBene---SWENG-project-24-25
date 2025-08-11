@@ -1,0 +1,74 @@
+package com.example.myspringapp.controller;
+
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.example.myspringapp.dto.LoginRequest;
+import com.example.myspringapp.dto.RegisterRequest;
+import com.example.myspringapp.dto.RegisterResponse;
+import com.example.myspringapp.repository.UserRepository;
+import com.example.myspringapp.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class AuthControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserRepository userRepository; // se serve per altri test
+
+    @MockBean
+    private UserService userService;
+
+    @Test
+    void registerUser_success() throws Exception {
+        // Arrange
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("testuser");
+        request.setEmail("test@example.com");
+        request.setPassword("password");
+
+        RegisterResponse mockResponse = new RegisterResponse();
+        mockResponse.setEmail("test@example.com");
+
+        given(userService.register(any())).willReturn(mockResponse);
+
+        // Act + Assert
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+
+    @Test
+    void login_shouldReturn200_whenCredentialsValid() throws Exception {
+        // Arrange
+        LoginRequest req = new LoginRequest("test@example.com", "password");
+        given(userService.login(any())).willReturn("test-token");
+
+        // Act + Assert
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("test-token"));
+    }
+}
+

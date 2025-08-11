@@ -73,13 +73,9 @@ export interface RegisterPayload {
 export const notesApi = {
   getAllNotes: () => api.get<Note[]>('/notes'),
   getNote: (id: number) => api.get<Note>(`/notes/${id}`),
-  
-  // Crea una nuova nota
-  createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
+  createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) =>
     api.post<Note>('/notes', note),
-  
-  // Aggiorna una nota
-  updateNote: (id: number, note: Partial<Note>) => 
+  updateNote: (id: number, note: Partial<Note>) =>
     api.put<Note>(`/notes/${id}`, note),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
   
