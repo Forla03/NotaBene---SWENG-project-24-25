@@ -1,4 +1,4 @@
-package com.example.myspringapp.config;
+package com.notabene.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,4 +32,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

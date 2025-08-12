@@ -1,4 +1,4 @@
-package com.example.myspringapp.config;
+package com.notabene.config;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,4 +12,3 @@ public class TokenStore {
     public boolean isValid(String token) { return tokens.containsKey(token); }
     public String getUsername(String token) { return tokens.get(token); }
 }
-

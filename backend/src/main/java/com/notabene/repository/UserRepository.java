@@ -1,9 +1,9 @@
-package com.example.myspringapp.repository;
+package com.notabene.repository;
 
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.example.myspringapp.model.User;
+import com.notabene.model.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);

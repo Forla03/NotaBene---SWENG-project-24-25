@@ -1,4 +1,4 @@
-package com.example.myspringapp.dto;
+package com.notabene.dto;
 
 public class RegisterResponse {
     private String username;
@@ -29,4 +29,3 @@ public class RegisterResponse {
         this.email = email;
     }
 }
-

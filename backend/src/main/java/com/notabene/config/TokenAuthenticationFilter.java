@@ -1,4 +1,4 @@
-package com.example.myspringapp.config;
+package com.notabene.config;
 
 import java.io.IOException;
 import java.util.List;
@@ -54,8 +54,3 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 }
-
-
-
-
-

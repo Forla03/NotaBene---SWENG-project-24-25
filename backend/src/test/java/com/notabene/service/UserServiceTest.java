@@ -1,4 +1,4 @@
-package com.example.myspringapp.controller;
+package com.notabene.service;
 
 import java.util.Optional;
 
@@ -16,12 +16,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.example.myspringapp.config.TokenStore;
-import com.example.myspringapp.dto.LoginRequest;
-import com.example.myspringapp.dto.RegisterRequest;
-import com.example.myspringapp.model.User;
-import com.example.myspringapp.repository.UserRepository;
-import com.example.myspringapp.service.UserService;
+import com.notabene.config.TokenStore;
+import com.notabene.dto.LoginRequest;
+import com.notabene.dto.RegisterRequest;
+import com.notabene.model.User;
+import com.notabene.repository.UserRepository;
 
 class UserServiceTest {
 
@@ -41,7 +40,7 @@ class UserServiceTest {
     @Test
     void register_newUser_savesUser() {
         RegisterRequest req = new RegisterRequest("Mario", "mario@example.com", "pwd");
-        when(userRepository.findByEmail("mario@example.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("mario@example.com")).thenReturn(false);
         when(passwordEncoder.encode("pwd")).thenReturn("hashed");
 
         userService.register(req);
@@ -54,7 +53,7 @@ class UserServiceTest {
 
     @Test
     void register_existingEmail_throws() {
-        when(userRepository.findByEmail("mario@example.com")).thenReturn(Optional.of(new User()));
+        when(userRepository.existsByEmail("mario@example.com")).thenReturn(true);
         RegisterRequest req = new RegisterRequest("Mario", "mario@example.com", "pwd");
 
         assertThrows(IllegalArgumentException.class, () -> userService.register(req));
@@ -90,5 +89,3 @@ class UserServiceTest {
                 userService.login(new LoginRequest("mario@example.com", "wrong")));
     }
 }
-
-

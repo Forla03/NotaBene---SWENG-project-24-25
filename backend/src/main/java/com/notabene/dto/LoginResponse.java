@@ -1,4 +1,4 @@
-package com.example.myspringapp.dto;
+package com.notabene.dto;
 
 public class LoginResponse {
     private String token;
@@ -19,4 +19,3 @@ public class LoginResponse {
         this.token = token;
     }
 }
-

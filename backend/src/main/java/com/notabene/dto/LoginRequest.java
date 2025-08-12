@@ -1,4 +1,4 @@
-package com.example.myspringapp.dto;
+package com.notabene.dto;
 
 public class LoginRequest {
     private String email;
@@ -29,4 +29,3 @@ public class LoginRequest {
         this.password = password;
     }
 }
-

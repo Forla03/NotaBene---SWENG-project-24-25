@@ -1,4 +1,4 @@
-package com.example.myspringapp.model;
+package com.notabene.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

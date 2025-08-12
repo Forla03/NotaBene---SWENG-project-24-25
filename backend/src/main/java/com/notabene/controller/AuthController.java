@@ -1,4 +1,4 @@
-package com.example.myspringapp.controller;
+package com.notabene.controller;
 
 import java.util.Map;
 
@@ -8,10 +8,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.myspringapp.dto.LoginRequest;
-import com.example.myspringapp.dto.LoginResponse;
-import com.example.myspringapp.dto.RegisterRequest;
-import com.example.myspringapp.service.UserService;
+import com.notabene.dto.LoginRequest;
+import com.notabene.dto.LoginResponse;
+import com.notabene.dto.RegisterRequest;
+import com.notabene.service.UserService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -40,4 +40,3 @@ public class AuthController {
         }
     }
 }
-
