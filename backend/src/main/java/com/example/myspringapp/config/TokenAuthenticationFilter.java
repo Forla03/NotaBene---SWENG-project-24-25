@@ -29,7 +29,19 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws IOException, ServletException {
 
         String path = request.getRequestURI();
-        if (PUBLIC_PATHS.contains(path)) { chain.doFilter(request, response); return; }
+        String method = request.getMethod();
+        
+        // Permetti richieste OPTIONS per CORS preflight
+        if ("OPTIONS".equals(method)) {
+            chain.doFilter(request, response);
+            return;
+        }
+        
+        // Permetti percorsi pubblici
+        if (PUBLIC_PATHS.contains(path)) { 
+            chain.doFilter(request, response); 
+            return; 
+        }
 
         String token = request.getHeader("X-Auth-Token");
         if (token != null && tokenStore.isValid(token)) {
