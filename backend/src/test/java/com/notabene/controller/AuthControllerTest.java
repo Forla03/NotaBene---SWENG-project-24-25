@@ -1,4 +1,4 @@
-package com.example.myspringapp.controller;
+package com.notabene.controller;
 
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,11 +13,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.example.myspringapp.dto.LoginRequest;
-import com.example.myspringapp.dto.RegisterRequest;
-import com.example.myspringapp.dto.RegisterResponse;
-import com.example.myspringapp.repository.UserRepository;
-import com.example.myspringapp.service.UserService;
+import com.notabene.dto.LoginRequest;
+import com.notabene.dto.RegisterRequest;
+import com.notabene.dto.RegisterResponse;
+import com.notabene.repository.UserRepository;
+import com.notabene.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
@@ -71,4 +71,3 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.token").value("test-token"));
     }
 }
-

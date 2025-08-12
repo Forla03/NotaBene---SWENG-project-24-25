@@ -1,6 +1,6 @@
-package com.example.myspringapp.security;
+package com.notabene.security;
 
-import com.example.myspringapp.model.User;
+import com.notabene.model.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

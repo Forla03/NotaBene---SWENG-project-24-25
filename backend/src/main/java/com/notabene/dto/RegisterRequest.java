@@ -1,4 +1,4 @@
-package com.example.myspringapp.dto;
+package com.notabene.dto;
 
 public class RegisterRequest {
 

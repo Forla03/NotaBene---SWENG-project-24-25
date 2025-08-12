@@ -1,16 +1,16 @@
-package com.example.myspringapp.service;
+package com.notabene.service;
 
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.example.myspringapp.config.TokenStore;
-import com.example.myspringapp.dto.LoginRequest;
-import com.example.myspringapp.dto.RegisterRequest;
-import com.example.myspringapp.dto.RegisterResponse;
-import com.example.myspringapp.model.User;
-import com.example.myspringapp.repository.UserRepository;
+import com.notabene.config.TokenStore;
+import com.notabene.dto.LoginRequest;
+import com.notabene.dto.RegisterRequest;
+import com.notabene.dto.RegisterResponse;
+import com.notabene.model.User;
+import com.notabene.repository.UserRepository;
 
 @Service
 public class UserService {
@@ -52,5 +52,3 @@ public class UserService {
         return token;
     }
 }
-
-

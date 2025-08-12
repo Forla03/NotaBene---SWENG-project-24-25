@@ -1,9 +1,9 @@
-package com.example.myspringapp.config;
+package com.notabene.config;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.example.myspringapp.model.User;
+import com.notabene.model.User;
 
 public class TokenAuthenticationStore {
 
@@ -21,4 +21,3 @@ public class TokenAuthenticationStore {
         return tokens.get(token);
     }
 }
-

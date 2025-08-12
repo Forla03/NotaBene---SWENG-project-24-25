@@ -1,4 +1,4 @@
-package com.example.myspringapp.config;
+package com.notabene.config;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 
@@ -21,4 +21,3 @@ public class TokenAuthentication extends AbstractAuthenticationToken {
         return principal;
     }
 }
-
