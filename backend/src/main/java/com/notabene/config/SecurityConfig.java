@@ -21,7 +21,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenAuthenticationFilter tokenFilter) throws Exception {
         http
-            .cors(cors -> cors.configure(http)) // Usa la configurazione CORS di WebConfig
+            .cors(cors -> cors
+                .configurationSource(request -> {
+                    var corsConfiguration = new org.springframework.web.cors.CorsConfiguration();
+                    corsConfiguration.setAllowedOriginPatterns(java.util.List.of("http://localhost:3000"));
+                    corsConfiguration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                    corsConfiguration.setAllowedHeaders(java.util.List.of("*"));
+                    corsConfiguration.setAllowCredentials(true);
+                    return corsConfiguration;
+                })
+            )
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/actuator/health").permitAll()

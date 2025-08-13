@@ -15,14 +15,25 @@ export default function Login({ onLoginSuccess, onCancel }: LoginProps) {
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    
     try {
       // Chiama login e aspetta token
       const token = await authApi.login({ email, password });
-      // Potresti voler estrarre username dall'email o da altro
+      
+      // Il token è già salvato in setAuthToken(), dobbiamo solo salvare l'username
       const username = email.split("@")[0];
+      localStorage.setItem('username', username);
+      
       onLoginSuccess(username); // aggiorna stato nell'app
-    } catch (err) {
-      setError("Login fallito: controlla email e password.");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      if (err.response?.status === 403) {
+        setError("Accesso negato. Verifica le credenziali.");
+      } else if (err.response?.status === 401) {
+        setError("Email o password non corretti.");
+      } else {
+        setError(`Login fallito: ${err.response?.data?.message || err.message || 'Errore sconosciuto'}`);
+      }
     }
   }
 

@@ -6,6 +6,7 @@ import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.service.NoteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/notes")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@Slf4j
 public class NoteController {
     
     private final NoteService noteService;
@@ -31,13 +32,20 @@ public class NoteController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         
-        List<NoteResponse> notes;
-        if (page != null && size != null) {
-            notes = noteService.getAllNotesPaginated(page, size);
-        } else {
-            notes = noteService.getAllNotes();
+        try {
+            log.info("Getting all notes - page: {}, size: {}", page, size);
+            List<NoteResponse> notes;
+            if (page != null && size != null) {
+                notes = noteService.getAllNotesPaginated(page, size);
+            } else {
+                notes = noteService.getAllNotes();
+            }
+            log.info("Successfully retrieved {} notes", notes.size());
+            return ResponseEntity.ok(notes);
+        } catch (Exception e) {
+            log.error("Error getting all notes", e);
+            throw e;
         }
-        return ResponseEntity.ok(notes);
     }
     
     @GetMapping("/{id}")

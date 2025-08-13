@@ -7,6 +7,7 @@ import com.notabene.entity.Note;
 import com.notabene.exception.NoteNotFoundException;
 import com.notabene.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class NoteService {
     
     private final NoteRepository noteRepository;
@@ -31,10 +33,19 @@ public class NoteService {
     
     @Transactional(readOnly = true)
     public List<NoteResponse> getAllNotes() {
-        return noteRepository.findAllByOrderByCreatedAtDesc()
-                .stream()
-                .map(NoteResponse::fromEntity)
-                .collect(Collectors.toList());
+        try {
+            log.info("Starting getAllNotes service method");
+            List<Note> notes = noteRepository.findAllByOrderByCreatedAtDesc();
+            log.info("Retrieved {} notes from repository", notes.size());
+            List<NoteResponse> responses = notes.stream()
+                    .map(NoteResponse::fromEntity)
+                    .collect(Collectors.toList());
+            log.info("Converted to {} note responses", responses.size());
+            return responses;
+        } catch (Exception e) {
+            log.error("Error in getAllNotes service method", e);
+            throw e;
+        }
     }
     
     @Transactional(readOnly = true)

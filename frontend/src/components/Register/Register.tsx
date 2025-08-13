@@ -60,21 +60,32 @@ const Register = ({ navigateTo, onBack, onSuccessfulRegistration }: RegisterProp
   
     setIsSubmitting(true);
     try {
+      // Prima registrazione
       await authApi.register({
         username: formData.username,
         email: formData.email,
         password: formData.password
       });
   
+      // Poi login automatico
+      const token = await authApi.login({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      // Il token è già salvato in setAuthToken(), dobbiamo solo salvare l'username
+      localStorage.setItem('username', formData.username);
+  
       if (onSuccessfulRegistration) {
         onSuccessfulRegistration(formData.username);
       }
-      navigateTo('home');
+      navigateTo('home'); // Vai alla home dopo registrazione
     } catch (err: any) {
+      console.error("Registration error:", err);
       if (err.response?.status === 409) {
         setErrorMessage(err.response.data?.error || "Email già in uso");
       } else {
-        setErrorMessage("Registration failed");
+        setErrorMessage(`Registrazione fallita: ${err.response?.data?.message || err.message || 'Errore sconosciuto'}`);
       }
     } finally {
       setIsSubmitting(false);

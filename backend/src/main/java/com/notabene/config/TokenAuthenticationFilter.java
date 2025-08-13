@@ -12,11 +12,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final List<String> PUBLIC_PATHS = List.of("/api/auth/register", "/api/auth/login");
+    private static final List<String> PUBLIC_PATHS = List.of("/api/auth/register", "/api/auth/login", "/actuator/health");
 
     private final TokenStore tokenStore;
 
@@ -44,12 +46,20 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = request.getHeader("X-Auth-Token");
+        log.info("Request to {} - Token present: {}", request.getRequestURI(), token != null);
+        if (token != null) {
+            log.info("Token value: {}", token);
+            log.info("Token valid: {}", tokenStore.isValid(token));
+        }
+        
         if (token != null && tokenStore.isValid(token)) {
             String username = tokenStore.getUsername(token);
+            log.info("Authentication successful for user: {}", username);
             var auth = new UsernamePasswordAuthenticationToken(username, null, List.of());
             SecurityContextHolder.getContext().setAuthentication(auth);
             chain.doFilter(request, response);
         } else {
+            log.error("Authentication failed - token: {}, valid: {}", token, token != null ? tokenStore.isValid(token) : "null");
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing token");
         }
     }

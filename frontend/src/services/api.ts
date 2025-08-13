@@ -19,26 +19,45 @@ const api = axios.create({
 // ✅ TOKEN HANDLING
 // ====================
 export function setAuthToken(token: string) {
-  localStorage.setItem('token', token);
+  localStorage.setItem('authToken', token);
+  // Il backend si aspetta X-Auth-Token, non Authorization Bearer
+  api.defaults.headers.common['X-Auth-Token'] = token;
 }
 
 export function getAuthToken(): string | null {
-  return localStorage.getItem('token');
+  return localStorage.getItem('authToken');
 }
 
 export function clearAuthToken() {
-  localStorage.removeItem('token');
+  localStorage.removeItem('authToken');
+  // Rimuove l'header X-Auth-Token
+  delete api.defaults.headers.common['X-Auth-Token'];
 }
 
-// ✅ Interceptor per aggiungere token dinamico a ogni richiesta
-api.interceptors.request.use((config) => {
+// ✅ Inizializza token al caricamento del modulo
+const initializeAuth = () => {
   const token = getAuthToken();
   if (token) {
-    config.headers = config.headers || {};
-    config.headers['X-Auth-Token'] = token;
+    api.defaults.headers.common['X-Auth-Token'] = token;
   }
-  return config;
-});
+};
+
+// Esegui inizializzazione
+initializeAuth();
+
+// ✅ Interceptor per gestire errori di autenticazione
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token non valido, pulisci e forza logout
+      clearAuthToken();
+      // Invia evento custom per notificare l'app del logout
+      window.dispatchEvent(new CustomEvent('auth-logout'));
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ====================
 // ✅ TYPES
@@ -71,7 +90,9 @@ export interface RegisterPayload {
 // ✅ API NOTES
 // ====================
 export const notesApi = {
-  getAllNotes: () => api.get<Note[]>('/notes'),
+  getAllNotes: () => {
+    return api.get<Note[]>('/notes');
+  },
   getNote: (id: number) => api.get<Note>(`/notes/${id}`),
   createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) =>
     api.post<Note>('/notes', note),

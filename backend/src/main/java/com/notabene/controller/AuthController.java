@@ -12,9 +12,11 @@ import com.notabene.dto.LoginRequest;
 import com.notabene.dto.LoginResponse;
 import com.notabene.dto.RegisterRequest;
 import com.notabene.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/auth")
+@Slf4j
 public class AuthController {
 
     private final UserService userService;
@@ -33,9 +35,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         try {
+            log.info("Login attempt for email: {}", request.getEmail());
             String token = userService.login(request);
+            log.info("Login successful for email: {}, token: {}", request.getEmail(), token);
             return ResponseEntity.ok(new LoginResponse(token));
         } catch (IllegalArgumentException e) {
+            log.error("Login failed for email: {} - {}", request.getEmail(), e.getMessage());
             return ResponseEntity.status(401).build();
         }
     }

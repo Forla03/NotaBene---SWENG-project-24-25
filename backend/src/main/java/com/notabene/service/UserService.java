@@ -11,8 +11,10 @@ import com.notabene.dto.RegisterRequest;
 import com.notabene.dto.RegisterResponse;
 import com.notabene.model.User;
 import com.notabene.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -42,12 +44,19 @@ public class UserService {
     }
 
     public String login(LoginRequest request) {
+        log.info("Login attempt for email: {}", request.getEmail());
         var user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+            .orElseThrow(() -> {
+                log.error("User not found for email: {}", request.getEmail());
+                return new IllegalArgumentException("Invalid email or password");
+            });
+        log.info("User found: {}, checking password...", user.getUsername());
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.error("Password mismatch for user: {}", user.getUsername());
             throw new IllegalArgumentException("Invalid email or password");
         }
         String token = UUID.randomUUID().toString();
+        log.info("Login successful for user: {}, token: {}", user.getUsername(), token);
         tokenStore.store(token, user.getUsername());
         return token;
     }
