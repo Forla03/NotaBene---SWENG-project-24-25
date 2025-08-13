@@ -5,6 +5,7 @@ import com.notabene.dto.NoteResponse;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.entity.Note;
 import com.notabene.exception.NoteNotFoundException;
+import com.notabene.model.User;
 import com.notabene.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,19 +25,28 @@ import java.util.stream.Collectors;
 public class NoteService {
     
     private final NoteRepository noteRepository;
+    private final AuthenticationService authenticationService;
     
     public NoteResponse createNote(CreateNoteRequest request) {
-        Note note = new Note(request.getTitle(), request.getContent());
+        User currentUser = authenticationService.getCurrentUser();
+        log.info("Creating note for user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
+        
+        Note note = new Note(request.getTitle(), request.getContent(), currentUser);
         Note savedNote = noteRepository.save(note);
+        log.info("Note created successfully with ID: {}", savedNote.getId());
+        
         return NoteResponse.fromEntity(savedNote);
     }
     
     @Transactional(readOnly = true)
     public List<NoteResponse> getAllNotes() {
         try {
-            log.info("Starting getAllNotes service method");
-            List<Note> notes = noteRepository.findAllByOrderByCreatedAtDesc();
-            log.info("Retrieved {} notes from repository", notes.size());
+            User currentUser = authenticationService.getCurrentUser();
+            log.info("Getting all notes for user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
+            
+            List<Note> notes = noteRepository.findByUserOrderByCreatedAtDesc(currentUser);
+            log.info("Retrieved {} notes for user {}", notes.size(), currentUser.getUsername());
+            
             List<NoteResponse> responses = notes.stream()
                     .map(NoteResponse::fromEntity)
                     .collect(Collectors.toList());
@@ -50,8 +60,9 @@ public class NoteService {
     
     @Transactional(readOnly = true)
     public List<NoteResponse> getAllNotesPaginated(int page, int size) {
+        User currentUser = authenticationService.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size);
-        Page<Note> notePage = noteRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<Note> notePage = noteRepository.findByUserOrderByCreatedAtDesc(currentUser, pageable);
         return notePage.getContent()
                 .stream()
                 .map(NoteResponse::fromEntity)
@@ -60,14 +71,16 @@ public class NoteService {
     
     @Transactional(readOnly = true)
     public NoteResponse getNoteById(Long id) {
-        Note note = noteRepository.findById(id)
-                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id));
+        User currentUser = authenticationService.getCurrentUser();
+        Note note = noteRepository.findByIdAndUser(id, currentUser)
+                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id + " for current user"));
         return NoteResponse.fromEntity(note);
     }
     
     public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
-        Note note = noteRepository.findById(id)
-                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id));
+        User currentUser = authenticationService.getCurrentUser();
+        Note note = noteRepository.findByIdAndUser(id, currentUser)
+                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id + " for current user"));
         
         // Update only non-null fields
         if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
@@ -82,15 +95,16 @@ public class NoteService {
     }
     
     public void deleteNote(Long id) {
-        if (!noteRepository.existsById(id)) {
-            throw new NoteNotFoundException("Note not found with id: " + id);
-        }
-        noteRepository.deleteById(id);
+        User currentUser = authenticationService.getCurrentUser();
+        Note note = noteRepository.findByIdAndUser(id, currentUser)
+                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id + " for current user"));
+        noteRepository.delete(note);
     }
     
     @Transactional(readOnly = true)
     public List<NoteResponse> searchNotes(String search) {
-        return noteRepository.searchNotes(search)
+        User currentUser = authenticationService.getCurrentUser();
+        return noteRepository.searchNotesByUser(currentUser, search)
                 .stream()
                 .map(NoteResponse::fromEntity)
                 .collect(Collectors.toList());
