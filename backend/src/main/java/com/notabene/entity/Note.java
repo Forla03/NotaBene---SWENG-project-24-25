@@ -1,5 +1,6 @@
 package com.notabene.entity;
 
+import com.notabene.model.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -27,6 +28,10 @@ public class Note {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
@@ -46,6 +51,14 @@ public class Note {
     }
     
     // Constructor for tests and manual creation
+    public Note(String title, String content, User user) {
+        this.title = title;
+        this.content = content;
+        this.user = user;
+    }
+    
+    // Constructor for backward compatibility (deprecated)
+    @Deprecated
     public Note(String title, String content) {
         this.title = title;
         this.content = content;

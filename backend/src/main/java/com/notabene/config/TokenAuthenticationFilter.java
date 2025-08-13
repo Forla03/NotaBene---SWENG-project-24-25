@@ -33,14 +33,16 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         
-        // Permetti richieste OPTIONS per CORS preflight
+        // Allow OPTIONS requests for CORS preflight (handled by Spring Security CORS config)
         if ("OPTIONS".equals(method)) {
+            log.debug("CORS preflight request to: {}", path);
             chain.doFilter(request, response);
             return;
         }
         
-        // Permetti percorsi pubblici
+        // Allow public paths
         if (PUBLIC_PATHS.contains(path)) { 
+            log.debug("Public path access: {}", path);
             chain.doFilter(request, response); 
             return; 
         }

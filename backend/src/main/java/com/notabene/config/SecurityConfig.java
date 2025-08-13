@@ -21,13 +21,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenAuthenticationFilter tokenFilter) throws Exception {
         http
+            // Configure CORS (centralized configuration)
             .cors(cors -> cors
                 .configurationSource(request -> {
                     var corsConfiguration = new org.springframework.web.cors.CorsConfiguration();
-                    corsConfiguration.setAllowedOriginPatterns(java.util.List.of("http://localhost:3000"));
+                    corsConfiguration.setAllowedOriginPatterns(java.util.List.of("http://localhost:3000", "http://localhost:3001"));
                     corsConfiguration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     corsConfiguration.setAllowedHeaders(java.util.List.of("*"));
                     corsConfiguration.setAllowCredentials(true);
+                    // Cache preflight requests for 30 minutes
+                    corsConfiguration.setMaxAge(1800L);
                     return corsConfiguration;
                 })
             )
