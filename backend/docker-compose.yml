@@ -19,6 +19,26 @@ services:
     networks:
       - notabene-network
 
+  postgres-test:
+    image: postgres:16
+    container_name: notabene-postgres-test
+    environment:
+      POSTGRES_DB: notabene_test
+      POSTGRES_USER: notabene_user
+      POSTGRES_PASSWORD: notabene_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notabene_user -d notabene_test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - notabene-network
+
   app:
     build: .
     container_name: notabene-app
@@ -46,6 +66,7 @@ services:
 
 volumes:
   pgdata:
+  pgdata-test:
 
 networks:
   notabene-network:

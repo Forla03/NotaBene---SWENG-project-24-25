@@ -8,6 +8,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -16,12 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.notabene.dto.LoginRequest;
 import com.notabene.dto.RegisterRequest;
 import com.notabene.dto.RegisterResponse;
-import com.notabene.repository.UserRepository;
 import com.notabene.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class AuthControllerTest {
 
     @Autowired
@@ -29,9 +30,6 @@ class AuthControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
-    private UserRepository userRepository; // se serve per altri test
 
     @MockBean
     private UserService userService;
@@ -53,7 +51,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
