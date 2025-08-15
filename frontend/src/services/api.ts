@@ -68,11 +68,29 @@ export interface Note {
   content: string;
   createdAt?: string;
   updatedAt?: string;
+  creatorId?: number;
+  readers?: string[];
+  writers?: string[];
+  isShared?: boolean;
+  isOwner?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canShare?: boolean;
 }
 
 export interface CreateNoteRequest {
   title: string;
   content: string;
+}
+
+export interface NotePermissions {
+  readers: string[];
+  writers: string[];
+  creator: string;
+}
+
+export interface AddPermissionRequest {
+  username: string;
 }
 
 export interface LoginPayload {
@@ -105,6 +123,29 @@ export const notesApi = {
   
   // Filtra per priorità
   getNotesByPriority: (priority: number) => api.get<Note[]>(`/notes/priority/${priority}`),
+
+  // ====================
+  // ✅ PERMISSION ENDPOINTS
+  // ====================
+  // Get note permissions
+  getNotePermissions: (noteId: number) => 
+    api.get<NotePermissions>(`/notes/${noteId}/permissions`),
+  
+  // Add reader permission
+  addReaderPermission: (noteId: number, request: AddPermissionRequest) =>
+    api.post(`/notes/${noteId}/permissions/readers`, request),
+  
+  // Remove reader permission
+  removeReaderPermission: (noteId: number, username: string) =>
+    api.delete(`/notes/${noteId}/permissions/readers/${username}`),
+  
+  // Add writer permission
+  addWriterPermission: (noteId: number, request: AddPermissionRequest) =>
+    api.post(`/notes/${noteId}/permissions/writers`, request),
+  
+  // Remove writer permission
+  removeWriterPermission: (noteId: number, username: string) =>
+    api.delete(`/notes/${noteId}/permissions/writers/${username}`),
 };
 
 // ====================

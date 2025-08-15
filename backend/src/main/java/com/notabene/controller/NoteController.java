@@ -3,6 +3,9 @@ package com.notabene.controller;
 import com.notabene.dto.CreateNoteRequest;
 import com.notabene.dto.NoteResponse;
 import com.notabene.dto.UpdateNoteRequest;
+import com.notabene.dto.AddPermissionRequest;
+import com.notabene.dto.RemovePermissionRequest;
+import com.notabene.dto.NotePermissionsResponse;
 import com.notabene.service.NoteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -72,5 +75,131 @@ public class NoteController {
     public ResponseEntity<List<NoteResponse>> searchNotes(@RequestParam String q) {
         List<NoteResponse> notes = noteService.searchNotes(q);
         return ResponseEntity.ok(notes);
+    }
+    
+    /**
+     * Get notes created by the current user
+     */
+    @GetMapping("/created")
+    public ResponseEntity<List<NoteResponse>> getCreatedNotes() {
+        log.info("Getting created notes for current user");
+        List<NoteResponse> notes = noteService.getCreatedNotes();
+        return ResponseEntity.ok(notes);
+    }
+    
+    /**
+     * Get notes shared with the current user
+     */
+    @GetMapping("/shared")
+    public ResponseEntity<List<NoteResponse>> getSharedNotes() {
+        log.info("Getting shared notes for current user");
+        List<NoteResponse> notes = noteService.getSharedNotes();
+        return ResponseEntity.ok(notes);
+    }
+    
+    /**
+     * Get permissions for a specific note
+     */
+    @GetMapping("/{noteId}/permissions")
+    public ResponseEntity<NotePermissionsResponse> getNotePermissions(@PathVariable Long noteId) {
+        log.info("Getting permissions for note ID: {}", noteId);
+        NotePermissionsResponse permissions = noteService.getNotePermissions(noteId);
+        return ResponseEntity.ok(permissions);
+    }
+    
+    /**
+     * Add read permission for a user to a note
+     */
+    @PostMapping("/{noteId}/permissions/readers")
+    public ResponseEntity<Void> addReaderPermission(
+            @PathVariable Long noteId,
+            @Valid @RequestBody AddPermissionRequest request) {
+        log.info("Adding read permission for user {} to note {}", request.getUsername(), noteId);
+        
+        noteService.addReaderByUsername(noteId, request.getUsername());
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Add write permission for a user to a note
+     */
+    @PostMapping("/{noteId}/permissions/writers")
+    public ResponseEntity<Void> addWriterPermission(
+            @PathVariable Long noteId,
+            @Valid @RequestBody AddPermissionRequest request) {
+        log.info("Adding write permission for user {} to note {}", request.getUsername(), noteId);
+        
+        noteService.addWriterByUsername(noteId, request.getUsername());
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Remove read permission for a user from a note (by username)
+     */
+    @DeleteMapping("/{noteId}/permissions/readers")
+    public ResponseEntity<Void> removeReaderPermissionByUsername(
+            @PathVariable Long noteId,
+            @Valid @RequestBody RemovePermissionRequest request) {
+        log.info("Removing read permission for user {} from note {}", request.getUsername(), noteId);
+        
+        noteService.removeReaderByUsername(noteId, request.getUsername());
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Remove write permission for a user from a note (by username)
+     */
+    @DeleteMapping("/{noteId}/permissions/writers")
+    public ResponseEntity<Void> removeWriterPermissionByUsername(
+            @PathVariable Long noteId,
+            @Valid @RequestBody RemovePermissionRequest request) {
+        log.info("Removing write permission for user {} from note {}", request.getUsername(), noteId);
+        
+        noteService.removeWriterByUsername(noteId, request.getUsername());
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Remove read permission for a user from a note (by userId)
+     */
+    @DeleteMapping("/{noteId}/permissions/readers/{userId}")
+    public ResponseEntity<Void> removeReaderPermission(
+            @PathVariable Long noteId,
+            @PathVariable Long userId) {
+        log.info("Removing read permission for user {} from note {}", userId, noteId);
+        
+        noteService.removeReaderPermission(noteId, userId);
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Remove write permission for a user from a note (by userId)
+     */
+    @DeleteMapping("/{noteId}/permissions/writers/{userId}")
+    public ResponseEntity<Void> removeWriterPermission(
+            @PathVariable Long noteId,
+            @PathVariable Long userId) {
+        log.info("Removing write permission for user {} from note {}", userId, noteId);
+        
+        noteService.removeWriterPermission(noteId, userId);
+        
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Add read permission for a user to a note (backward compatibility)
+     */
+    @PostMapping("/{id}/readers")
+    public ResponseEntity<Void> addReader(
+            @PathVariable Long id, 
+            @Valid @RequestBody AddPermissionRequest request) {
+        log.info("Adding read permission for user {} to note {}", request.getUsername(), id);
+        noteService.addReaderByUsername(id, request.getUsername());
+        return ResponseEntity.ok().build();
     }
 }

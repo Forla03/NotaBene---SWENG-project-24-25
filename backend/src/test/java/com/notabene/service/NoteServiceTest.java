@@ -3,10 +3,12 @@ package com.notabene.service;
 import com.notabene.dto.CreateNoteRequest;
 import com.notabene.dto.NoteResponse;
 import com.notabene.dto.UpdateNoteRequest;
+import com.notabene.dto.NotePermissionsResponse;
 import com.notabene.entity.Note;
 import com.notabene.exception.NoteNotFoundException;
 import com.notabene.model.User;
 import com.notabene.repository.NoteRepository;
+import com.notabene.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +29,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Note Service Tests")
@@ -37,6 +40,9 @@ class NoteServiceTest {
     
     @Mock
     private AuthenticationService authenticationService;
+    
+    @Mock
+    private UserRepository userRepository;
     
     @InjectMocks
     private NoteService noteService;
@@ -55,17 +61,21 @@ class NoteServiceTest {
         testUser.setEmail("test@example.com");
         testUser.setPassword("password");
         
-        // Create sample note with user
+        // Create sample note with user and permissions
         sampleNote = new Note("Test Note", "Test Content", testUser);
         sampleNote.setId(1L);
         sampleNote.setCreatedAt(LocalDateTime.now());
         sampleNote.setUpdatedAt(LocalDateTime.now());
+        // Initialize permissions for test user
+        sampleNote.setCreatorId(testUser.getId());
+        sampleNote.addReader(testUser.getId());
+        sampleNote.addWriter(testUser.getId());
         
         validCreateRequest = new CreateNoteRequest("Test Note", "Test Content");
         validUpdateRequest = new UpdateNoteRequest("Updated Title", "Updated Content");
         
-        // Mock current user for all tests
-        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        // Mock current user for all tests (lenient to avoid unnecessary stubbing issues)
+        lenient().when(authenticationService.getCurrentUser()).thenReturn(testUser);
     }
     
     @Test
@@ -87,8 +97,11 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should get all notes for current user only")
     void shouldGetAllNotesSuccessfully() {
-        List<Note> notes = Arrays.asList(sampleNote);
-        when(noteRepository.findByUserOrderByCreatedAtDesc(testUser)).thenReturn(notes);
+        List<Note> createdNotes = Arrays.asList(sampleNote);
+        List<Note> sharedNotes = Arrays.asList(); // Empty shared notes for this test
+        
+        when(noteRepository.findByCreatorId(testUser.getId())).thenReturn(createdNotes);
+        when(noteRepository.findSharedWithUser(testUser.getId())).thenReturn(sharedNotes);
         
         List<NoteResponse> result = noteService.getAllNotes();
         
@@ -98,7 +111,8 @@ class NoteServiceTest {
         assertEquals("Test Note", result.get(0).getTitle());
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByUserOrderByCreatedAtDesc(testUser);
+        verify(noteRepository).findByCreatorId(testUser.getId());
+        verify(noteRepository).findSharedWithUser(testUser.getId());
     }
     
     @Test
@@ -123,7 +137,7 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should get note by id for current user only")
     void shouldGetNoteByIdSuccessfully() {
-        when(noteRepository.findByIdAndUser(1L, testUser)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.findByIdWithReadPermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
         
         NoteResponse result = noteService.getNoteById(1L);
         
@@ -133,13 +147,13 @@ class NoteServiceTest {
         assertEquals("Test Content", result.getContent());
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(1L, testUser);
+        verify(noteRepository).findByIdWithReadPermission(1L, testUser.getId());
     }
     
     @Test
-    @DisplayName("Should throw exception when note not found for current user")
+    @DisplayName("Should throw exception when note not found or no read permission")
     void shouldThrowExceptionWhenNoteNotFoundById() {
-        when(noteRepository.findByIdAndUser(999L, testUser)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdWithReadPermission(999L, testUser.getId())).thenReturn(Optional.empty());
         
         NoteNotFoundException exception = assertThrows(
                 NoteNotFoundException.class,
@@ -148,7 +162,7 @@ class NoteServiceTest {
         
         assertEquals("Note not found with id: 999 for current user", exception.getMessage());
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(999L, testUser);
+        verify(noteRepository).findByIdWithReadPermission(999L, testUser.getId());
     }
     
     @Test
@@ -158,8 +172,12 @@ class NoteServiceTest {
         updatedNote.setId(1L);
         updatedNote.setCreatedAt(sampleNote.getCreatedAt());
         updatedNote.setUpdatedAt(LocalDateTime.now());
+        // Set permissions for updated note
+        updatedNote.setCreatorId(testUser.getId());
+        updatedNote.addReader(testUser.getId());
+        updatedNote.addWriter(testUser.getId());
         
-        when(noteRepository.findByIdAndUser(1L, testUser)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
         when(noteRepository.save(any(Note.class))).thenReturn(updatedNote);
         
         NoteResponse result = noteService.updateNote(1L, validUpdateRequest);
@@ -170,7 +188,7 @@ class NoteServiceTest {
         assertEquals("Updated Content", result.getContent());
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(1L, testUser);
+        verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
         verify(noteRepository).save(any(Note.class));
     }
     
@@ -179,7 +197,7 @@ class NoteServiceTest {
     void shouldUpdateNotePartially() {
         UpdateNoteRequest partialUpdate = new UpdateNoteRequest(null, "Updated Content Only");
         
-        when(noteRepository.findByIdAndUser(1L, testUser)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
         when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
         
         NoteResponse result = noteService.updateNote(1L, partialUpdate);
@@ -189,7 +207,7 @@ class NoteServiceTest {
         assertEquals("Updated Content Only", result.getContent()); // Should be updated
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(1L, testUser);
+        verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
         verify(noteRepository).save(any(Note.class));
     }
     
@@ -198,7 +216,7 @@ class NoteServiceTest {
     void shouldIgnoreBlankStringsInUpdate() {
         UpdateNoteRequest updateWithBlanks = new UpdateNoteRequest("", "   ");
         
-        when(noteRepository.findByIdAndUser(1L, testUser)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
         when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
         
         NoteResponse result = noteService.updateNote(1L, updateWithBlanks);
@@ -208,52 +226,54 @@ class NoteServiceTest {
         assertEquals("Test Content", result.getContent()); // Should remain unchanged
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(1L, testUser);
+        verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
         verify(noteRepository).save(any(Note.class));
     }
     
     @Test
-    @DisplayName("Should throw exception when updating note not owned by current user")
+    @DisplayName("Should throw exception when updating note without write permission")
     void shouldThrowExceptionWhenUpdatingNonExistentNote() {
-        when(noteRepository.findByIdAndUser(999L, testUser)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdWithWritePermission(999L, testUser.getId())).thenReturn(Optional.empty());
         
         NoteNotFoundException exception = assertThrows(
                 NoteNotFoundException.class,
                 () -> noteService.updateNote(999L, validUpdateRequest)
         );
         
-        assertEquals("Note not found with id: 999 for current user", exception.getMessage());
+        assertEquals("Note not found with id: 999 for current user or user has no write permission", exception.getMessage());
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(999L, testUser);
+        verify(noteRepository).findByIdWithWritePermission(999L, testUser.getId());
         verify(noteRepository, never()).save(any(Note.class));
     }
     
     @Test
-    @DisplayName("Should delete note for current user only")
+    @DisplayName("Should delete note for note owner only")
     void shouldDeleteNoteSuccessfully() {
-        when(noteRepository.findByIdAndUser(1L, testUser)).thenReturn(Optional.of(sampleNote));
+        // Set the sample note to be owned by the test user
+        sampleNote.setCreatorId(testUser.getId());
+        when(noteRepository.findById(1L)).thenReturn(Optional.of(sampleNote));
         doNothing().when(noteRepository).delete(sampleNote);
         
         assertDoesNotThrow(() -> noteService.deleteNote(1L));
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(1L, testUser);
+        verify(noteRepository).findById(1L);
         verify(noteRepository).delete(sampleNote);
     }
     
     @Test
-    @DisplayName("Should throw exception when deleting note not owned by current user")
+    @DisplayName("Should throw exception when deleting note that doesn't exist")
     void shouldThrowExceptionWhenDeletingNonExistentNote() {
-        when(noteRepository.findByIdAndUser(999L, testUser)).thenReturn(Optional.empty());
+        when(noteRepository.findById(999L)).thenReturn(Optional.empty());
         
         NoteNotFoundException exception = assertThrows(
                 NoteNotFoundException.class,
                 () -> noteService.deleteNote(999L)
         );
         
-        assertEquals("Note not found with id: 999 for current user", exception.getMessage());
+        assertEquals("Note not found", exception.getMessage());
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(999L, testUser);
+        verify(noteRepository).findById(999L);
         verify(noteRepository, never()).delete(any(Note.class));
     }
     
@@ -300,7 +320,7 @@ class NoteServiceTest {
         otherUserNote.setId(2L);
         
         // Try to access other user's note - should not find it
-        when(noteRepository.findByIdAndUser(2L, testUser)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdWithReadPermission(2L, testUser.getId())).thenReturn(Optional.empty());
         
         NoteNotFoundException exception = assertThrows(
                 NoteNotFoundException.class,
@@ -309,6 +329,240 @@ class NoteServiceTest {
         
         assertEquals("Note not found with id: 2 for current user", exception.getMessage());
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).findByIdAndUser(2L, testUser);
+        verify(noteRepository).findByIdWithReadPermission(2L, testUser.getId());
+    }
+    
+    // =========================== PERMISSION TESTS ===========================
+    // These tests validate the permission functionality of the NoteService
+    
+    @Test
+    @DisplayName("Should add reader permission successfully")
+    void shouldAddReaderPermissionSuccessfully() {
+        Long noteId = 1L;
+        Long userId = 2L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.addReaderPermission(noteId, userId));
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should add writer permission successfully")
+    void shouldAddWriterPermissionSuccessfully() {
+        Long noteId = 1L;
+        Long userId = 2L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.addWriterPermission(noteId, userId));
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should remove reader permission successfully")
+    void shouldRemoveReaderPermissionSuccessfully() {
+        Long noteId = 1L;
+        Long userId = 2L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.removeReaderPermission(noteId, userId));
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should remove writer permission successfully")
+    void shouldRemoveWriterPermissionSuccessfully() {
+        Long noteId = 1L;
+        Long userId = 2L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.removeWriterPermission(noteId, userId));
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should add reader permission by username successfully")
+    void shouldAddReaderPermissionByUsernameSuccessfully() {
+        Long noteId = 1L;
+        String username = "otheruser";
+        
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername(username);
+        
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(otherUser));
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.addReaderByUsername(noteId, username));
+        
+        verify(userRepository).findByUsername(username);
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should add writer permission by username successfully")
+    void shouldAddWriterPermissionByUsernameSuccessfully() {
+        Long noteId = 1L;
+        String username = "otheruser";
+        
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername(username);
+        
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(otherUser));
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.addWriterByUsername(noteId, username));
+        
+        verify(userRepository).findByUsername(username);
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should remove reader permission by username successfully")
+    void shouldRemoveReaderPermissionByUsernameSuccessfully() {
+        Long noteId = 1L;
+        String username = "otheruser";
+        
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername(username);
+        
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(otherUser));
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.removeReaderByUsername(noteId, username));
+        
+        verify(userRepository).findByUsername(username);
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should remove writer permission by username successfully")
+    void shouldRemoveWriterPermissionByUsernameSuccessfully() {
+        Long noteId = 1L;
+        String username = "otheruser";
+        
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername(username);
+        
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(otherUser));
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
+        
+        assertDoesNotThrow(() -> noteService.removeWriterByUsername(noteId, username));
+        
+        verify(userRepository).findByUsername(username);
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+        verify(noteRepository).save(any(Note.class));
+    }
+    
+    @Test
+    @DisplayName("Should get note permissions successfully")
+    void shouldGetNotePermissionsSuccessfully() {
+        Long noteId = 1L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        
+        NotePermissionsResponse response = noteService.getNotePermissions(noteId);
+        
+        assertNotNull(response);
+        assertEquals(testUser.getId(), response.getCreatorId());
+        assertEquals(noteId, response.getNoteId());
+        assertNotNull(response.getReaders());
+        assertNotNull(response.getWriters());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
+    }
+    
+    @Test
+    @DisplayName("Should throw exception when user not found for permission by username")
+    void shouldThrowExceptionWhenUserNotFoundForPermission() {
+        Long noteId = 1L;
+        String nonExistentUsername = "nonexistent";
+        
+        when(userRepository.findByUsername(nonExistentUsername)).thenReturn(Optional.empty());
+        
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.addReaderByUsername(noteId, nonExistentUsername)
+        );
+        
+        assertEquals("User not found: " + nonExistentUsername, exception.getMessage());
+        verify(userRepository).findByUsername(nonExistentUsername);
+    }
+    
+    @Test
+    @DisplayName("Should throw exception when trying to remove creator's permissions")
+    void shouldThrowExceptionWhenRemovingCreatorPermissions() {
+        Long noteId = 1L;
+        Long creatorId = testUser.getId();
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        
+        IllegalArgumentException readerException = assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.removeReaderPermission(noteId, creatorId)
+        );
+        
+        IllegalArgumentException writerException = assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.removeWriterPermission(noteId, creatorId)
+        );
+        
+        assertEquals("Cannot remove creator's permissions", readerException.getMessage());
+        assertEquals("Cannot remove creator's permissions", writerException.getMessage());
+        
+        verify(authenticationService, times(2)).getCurrentUser();
+        verify(noteRepository, times(2)).findById(noteId);
+    }
+    
+    @Test
+    @DisplayName("Should deny access when user has no permission")
+    void shouldDenyAccessWhenNoPermission() {
+        Long noteId = 1L;
+        
+        when(noteRepository.findById(noteId)).thenReturn(Optional.empty());
+        
+        NoteNotFoundException exception = assertThrows(
+                NoteNotFoundException.class,
+                () -> noteService.getNotePermissions(noteId)
+        );
+        
+        assertEquals("Note not found", exception.getMessage());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findById(noteId);
     }
 }
