@@ -1,6 +1,8 @@
 package com.notabene.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notabene.dto.AddPermissionRequest;
+import com.notabene.dto.RemovePermissionRequest;
 import com.notabene.dto.CreateNoteRequest;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.entity.Note;
@@ -20,6 +22,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -53,7 +57,9 @@ class NoteIntegrationTest {
     private TokenStore tokenStore;
 
     private User testUser;
+    private User otherUser;
     private String authToken;
+    private String otherAuthToken;
 
     @BeforeEach
     void setUp() {
@@ -69,9 +75,20 @@ class NoteIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("password123"));
         testUser = userRepository.save(testUser);
 
+        // Crea un secondo utente per i test di permessi
+        String otherUniqueEmail = "otheruser-" + UUID.randomUUID() + "@example.com";
+        otherUser = new User();
+        otherUser.setUsername("otheruser");
+        otherUser.setEmail(otherUniqueEmail);
+        otherUser.setPassword(passwordEncoder.encode("password123"));
+        otherUser = userRepository.save(otherUser);
+
         // Genera token di autenticazione
         authToken = "test-token-" + UUID.randomUUID();
         tokenStore.store(authToken, testUser.getUsername());
+        
+        otherAuthToken = "other-token-" + UUID.randomUUID();
+        tokenStore.store(otherAuthToken, otherUser.getUsername());
     }
 
     @Test
@@ -220,5 +237,418 @@ class NoteIntegrationTest {
                 .content(objectMapper.writeValueAsString(request))
                 .with(csrf()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should return permission flags correctly for owner")
+    void shouldReturnPermissionFlagsForOwner() throws Exception {
+        // Crea una nota di test
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        // Verifica che i flag di permesso siano corretti per il proprietario
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].isOwner").value(true))
+                .andExpect(jsonPath("$[0].canEdit").value(true))
+                .andExpect(jsonPath("$[0].canDelete").value(true))
+                .andExpect(jsonPath("$[0].canShare").value(true))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("Should return permission flags correctly for writer")
+    void shouldReturnPermissionFlagsForWriter() throws Exception {
+        // Crea una nota di test con l'altro utente come writer
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setWriters(new ArrayList<>(List.of(otherUser.getId())));
+        note = noteRepository.save(note);
+
+        // Verifica che i flag di permesso siano corretti per il writer
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].isOwner").value(false))
+                .andExpect(jsonPath("$[0].canEdit").value(true))
+                .andExpect(jsonPath("$[0].canDelete").value(false))
+                .andExpect(jsonPath("$[0].canShare").value(false))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("Should return permission flags correctly for reader")
+    void shouldReturnPermissionFlagsForReader() throws Exception {
+        // Crea una nota di test con l'altro utente come reader
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(otherUser.getId())));
+        note = noteRepository.save(note);
+
+        // Verifica che i flag di permesso siano corretti per il reader
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].isOwner").value(false))
+                .andExpect(jsonPath("$[0].canEdit").value(false))
+                .andExpect(jsonPath("$[0].canDelete").value(false))
+                .andExpect(jsonPath("$[0].canShare").value(false))
+                .andDo(print());
+    }
+
+    // Permission Tests
+    @Test
+    @DisplayName("Should get note permissions")
+    void shouldGetNotePermissions() throws Exception {
+        // Crea una nota con permessi
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(otherUser.getId())));
+        note.setWriters(new ArrayList<>(List.of(otherUser.getId())));
+        note = noteRepository.save(note);
+
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note_id").value(note.getId()))
+                .andExpect(jsonPath("$.creator_id").value(testUser.getId()))
+                .andExpect(jsonPath("$.readers").isArray())
+                .andExpect(jsonPath("$.readers[0]").value(otherUser.getId()))
+                .andExpect(jsonPath("$.writers").isArray())
+                .andExpect(jsonPath("$.writers[0]").value(otherUser.getId()));
+    }
+    
+    @Test
+    @DisplayName("Should add reader permission to note")
+    void shouldAddReaderPermission() throws Exception {
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        AddPermissionRequest request = new AddPermissionRequest(otherUser.getUsername());
+
+        mockMvc.perform(post("/api/notes/" + note.getId() + "/permissions/readers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isOk());
+                
+        // Verifica che il permesso sia stato aggiunto
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readers").isArray())
+                .andExpect(jsonPath("$.readers[1]").value(otherUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should add writer permission to note")
+    void shouldAddWriterPermission() throws Exception {
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        AddPermissionRequest request = new AddPermissionRequest(otherUser.getUsername());
+
+        mockMvc.perform(post("/api/notes/" + note.getId() + "/permissions/writers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isOk());
+                
+        // Verifica che il permesso sia stato aggiunto
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.writers").isArray())
+                .andExpect(jsonPath("$.writers[1]").value(otherUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should remove reader permission from note")
+    void shouldRemoveReaderPermission() throws Exception {
+        // Crea una nota con permessi
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        RemovePermissionRequest request = new RemovePermissionRequest(otherUser.getUsername());
+
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/permissions/readers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isOk());
+                
+        // Verifica che il permesso sia stato rimosso
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readers").isArray())
+                .andExpect(jsonPath("$.readers.length()").value(1))
+                .andExpect(jsonPath("$.readers[0]").value(testUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should remove writer permission from note")
+    void shouldRemoveWriterPermission() throws Exception {
+        // Crea una nota con permessi
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setWriters(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        RemovePermissionRequest request = new RemovePermissionRequest(otherUser.getUsername());
+
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/permissions/writers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isOk());
+                
+        // Verifica che il permesso sia stato rimosso
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.writers").isArray())
+                .andExpect(jsonPath("$.writers.length()").value(1))
+                .andExpect(jsonPath("$.writers[0]").value(testUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should add reader permission using backward compatibility endpoint")
+    void shouldAddReaderPermissionBackwardCompatibility() throws Exception {
+        // Crea una nota
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        AddPermissionRequest request = new AddPermissionRequest(otherUser.getUsername());
+
+        mockMvc.perform(post("/api/notes/" + note.getId() + "/readers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isOk());
+                
+        // Verifica che il permesso sia stato aggiunto
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readers").isArray())
+                .andExpect(jsonPath("$.readers[1]").value(otherUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should deny access to note without permission")
+    void shouldDenyAccessWithoutPermission() throws Exception {
+        // Crea una nota senza permessi per otherUser
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        mockMvc.perform(get("/api/notes/" + note.getId())
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Should allow access to shared note for reader")
+    void shouldAllowAccessToSharedNoteForReader() throws Exception {
+        // Crea una nota condivisa con otherUser come reader
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        mockMvc.perform(get("/api/notes/" + note.getId())
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Test Note"));
+    }
+
+    @Test
+    @DisplayName("Should allow write access to shared note for writer")
+    void shouldAllowWriteAccessToSharedNoteForWriter() throws Exception {
+        // Crea una nota condivisa con otherUser come writer
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setWriters(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        UpdateNoteRequest updateRequest = new UpdateNoteRequest("Updated Title", "Updated Content");
+
+        mockMvc.perform(put("/api/notes/" + note.getId())
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest))
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated Title"));
+    }
+
+    @Test
+    @DisplayName("Should get notes shared with user")
+    void shouldGetNotesSharedWithUser() throws Exception {
+        // Crea due note: una propria e una condivisa
+        Note ownNote = new Note();
+        ownNote.setTitle("Own Note");
+        ownNote.setContent("Own Content");
+        ownNote.setUser(otherUser);
+        ownNote.setCreatorId(otherUser.getId());
+        noteRepository.save(ownNote);
+
+        Note sharedNote = new Note();
+        sharedNote.setTitle("Shared Note");
+        sharedNote.setContent("Shared Content");
+        sharedNote.setUser(testUser);
+        sharedNote.setCreatorId(testUser.getId());
+        sharedNote.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        noteRepository.save(sharedNote);
+
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("Should fail to add permission for non-existent user")
+    void shouldFailToAddPermissionForNonExistentUser() throws Exception {
+        // Crea una nota
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        AddPermissionRequest request = new AddPermissionRequest("nonexistentuser");
+
+        mockMvc.perform(post("/api/notes/" + note.getId() + "/permissions/readers")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Should prevent non-owner from managing permissions")
+    void shouldPreventNonOwnerFromManagingPermissions() throws Exception {
+        // Crea una nota come testUser
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        AddPermissionRequest request = new AddPermissionRequest(testUser.getUsername());
+
+        // otherUser tenta di aggiungere permessi
+        mockMvc.perform(post("/api/notes/" + note.getId() + "/permissions/readers")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Should deny write access to reader-only user")
+    void shouldDenyWriteAccessToReaderOnlyUser() throws Exception {
+        // Crea una nota condivisa solo come reader
+        Note note = new Note();
+        note.setTitle("Test Note");
+        note.setContent("Test Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        UpdateNoteRequest updateRequest = new UpdateNoteRequest("Hacked Title", "Hacked Content");
+
+        mockMvc.perform(put("/api/notes/" + note.getId())
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest))
+                .with(csrf()))
+                .andExpect(status().isNotFound());
     }
 }
