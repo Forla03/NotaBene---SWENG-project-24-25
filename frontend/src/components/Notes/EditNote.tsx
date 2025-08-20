@@ -1,5 +1,9 @@
-import React, { useState, FormEvent } from 'react';
-import { Note, notesApi } from '../../services/api';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { Note, notesApi, TagDTO } from '../../services/api';
+import TagSelector from '../Tags/TagSelector';
+import CreateTagModal from '../Tags/CreateTagModal';
+import '../Tags/TagSelector.css';
+import '../Tags/CreateTagModal.css';
 import './EditNote.css';
 
 interface EditNoteProps {
@@ -13,13 +17,22 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
     title: note.title,
     content: note.content
   });
+  const [tags, setTags] = useState<TagDTO[]>(note.tags ?? []);
+  const [openTagModal, setOpenTagModal] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Se cambia la nota in props, riallinea lo stato locale (utile quando rientri da altra pagina)
+  useEffect(() => {
+    setUpdatedNote({ title: note.title, content: note.content });
+    setTags(note.tags ?? []);
+  }, [note]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     if (!updatedNote.title.trim() || !updatedNote.content.trim()) {
       setError('Titolo e contenuto sono obbligatori');
       return;
@@ -40,7 +53,11 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
 
     setIsSubmitting(true);
     try {
-      const response = await notesApi.updateNote(note.id, updatedNote);
+      const response = await notesApi.updateNote(note.id, {
+        title: updatedNote.title,
+        content: updatedNote.content,
+        tagIds: tags.map(t => t.id), // ⬅️ inviamo i tag selezionati
+      });
       onNoteUpdated(response.data);
     } catch (err: any) {
       console.error('Error updating note:', err);
@@ -65,13 +82,21 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="edit-note-form">
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        
+      <form
+        onSubmit={handleSubmit}
+        className="edit-note-form"
+        onKeyDownCapture={(e) => {
+        if (e.key === 'Enter') {
+          const el = e.target as HTMLElement;
+          if (el.closest('.tag-selector')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+        }}
+      >
+        {error && <div className="error-message">{error}</div>}
+
         <div className="form-group">
           <label htmlFor="title">Titolo della nota</label>
           <input
@@ -86,7 +111,7 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
           />
           <div className="char-count">{updatedNote.title.length}/255</div>
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="content">Contenuto</label>
           <textarea
@@ -102,6 +127,21 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
           <div className="char-count">{updatedNote.content.length}/280</div>
         </div>
 
+        {/* ---- SEZIONE TAG ---- */}
+        <div className="tag-tools">
+          <label>Tag</label>
+          <TagSelector value={tags} onChange={setTags} placeholder="Aggiungi tag…" />
+          <div style={{ marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              className="back-button"
+              onClick={() => setOpenTagModal(true)}
+            >
+              + Nuovo tag
+            </button>
+          </div>
+        </div>
+
         <div className="preview-section">
           <h3>Anteprima</h3>
           <div className="note-preview">
@@ -113,13 +153,13 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
             </p>
           </div>
         </div>
-        
+
         <div className="form-actions">
           <button type="button" onClick={onCancel} className="cancel-btn">
             Annulla
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="submit-btn"
             disabled={isSubmitting || !updatedNote.title.trim() || !updatedNote.content.trim()}
           >
@@ -127,8 +167,16 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
           </button>
         </div>
       </form>
+      <CreateTagModal
+          isOpen={openTagModal}
+          onClose={() => setOpenTagModal(false)}
+          onCreated={(t) =>
+            setTags((prev) => (prev.some((p) => p.id === t.id) ? prev : [...prev, t]))
+          }
+        />
     </div>
   );
 };
 
 export default EditNote;
+

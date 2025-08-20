@@ -1,0 +1,116 @@
+.folder-sidebar {
+  font-family: 'Arial', sans-serif;
+  padding: 1rem;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 6px rgba(0,0,0,.1);
+}
+
+.fs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .75rem;
+}
+
+.fs-title {
+  color: #2c3e50;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.fs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 45vh;
+  overflow: auto;
+  margin-bottom: .75rem;
+}
+
+/* ==== LISTA ==== */
+.fs-list-ul { list-style: none; padding: 0; margin: 0; }
+.fs-list-ul li { margin: 2px 0; }
+
+/* Ogni voce è un "bottone" a tutta larghezza */
+.fs-item-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px 1fr 12px; /* icona, label, freccia */
+  align-items: center;
+  gap: 8px;
+
+  text-align: left;
+  border: 1px solid #dee2e6;
+  background: #f8f9fa;
+  color: #2c3e50;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .02s ease, box-shadow .15s;
+}
+
+.fs-item-btn:hover {
+  background: #eef2f6;
+  border-color: #cfd6de;
+}
+
+.fs-item-btn:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+  background: #eef5ff;
+}
+
+.fs-item-btn.active {
+  background: #e8f0fe;
+  border-color: #cfe8ff;
+  color: #1f3a8a;
+  box-shadow: inset 3px 0 0 #3b82f6; /* barra laterale di selezione */
+}
+
+/* Icone e label */
+.fs-item-icon { opacity: 0.9; }
+.fs-item-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Freccia che appare su hover/active */
+.fs-item-arrow {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all .15s ease;
+}
+.fs-item-btn:hover .fs-item-arrow,
+.fs-item-btn.active .fs-item-arrow {
+  opacity: .6;
+  transform: translateX(0);
+}
+
+/* ==== CREA ==== */
+.fs-create {
+  display: flex;
+  gap: 6px;
+}
+
+.fs-create input {
+  flex: 1;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease, transform .02s ease;
+}
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ==== messaggi ==== */
+.fs-loading, .fs-empty, .fs-error { color: #64748b; font-size: .9rem; }
+.fs-error { color: #e03131; }

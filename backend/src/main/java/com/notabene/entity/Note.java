@@ -1,16 +1,35 @@
 package com.notabene.entity;
 
-import com.notabene.model.User;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import com.notabene.model.Tag;
+import com.notabene.model.User;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "notes")
@@ -54,6 +73,23 @@ public class Note {
     
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // ...
+    @ManyToMany
+    @JoinTable(
+        name = "note_tag",
+        joinColumns = @JoinColumn(name = "note_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
+
+    public Set<Tag> getTags() { return tags; }
+    /** NON sostituire l'istanza: modifica la collection esistente */
+    public void setTags(Set<Tag> tags) {
+        this.tags.clear();
+        if (tags != null) this.tags.addAll(tags);
+    }
+
     
     @PrePersist
     protected void onCreate() {
@@ -172,4 +208,5 @@ public class Note {
     public boolean isCreator(Long userId) {
         return userId != null && userId.equals(this.creatorId);
     }
+
 }

@@ -7,10 +7,10 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="notabene-backend" />
+        <module name="my-spring-app" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="my-spring-app" target="17" />
       <module name="NotaBene---SWENG-project-24-25" target="1.5" />
     </bytecodeTargetLevel>
   </component>
