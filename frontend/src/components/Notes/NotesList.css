@@ -271,3 +271,29 @@ h1 {
     padding: 12px 24px;
   }
 }
+
+.tag-pill-list {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.tag-pill {
+  background: #ecf2ff;
+  color: #2c3e50;
+  border: 1px solid #d6e4ff;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-pill-empty {
+  background: #fff5f5;
+  color: #fa5252;
+  border: 1px solid #ffdddd;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.85rem;
+}

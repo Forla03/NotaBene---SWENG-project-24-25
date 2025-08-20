@@ -210,3 +210,8 @@
     width: 100%;
   }
 }
+
+.tag-tools {
+  position: relative;
+  z-index: 1010;
+}

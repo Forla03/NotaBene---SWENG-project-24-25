@@ -1,5 +1,9 @@
-import { useState, FormEvent } from 'react';
-import { Note, notesApi, CreateNoteRequest } from '../../services/api';
+import React, { useState, FormEvent } from 'react';
+import { Note, notesApi, TagDTO } from '../../services/api';
+import TagSelector from '../Tags/TagSelector';
+import CreateTagModal from '../Tags/CreateTagModal';
+import '../Tags/TagSelector.css';
+import '../Tags/CreateTagModal.css';
 import './CreateNote.css';
 
 interface CreateNoteProps {
@@ -7,37 +11,40 @@ interface CreateNoteProps {
   onCancel: () => void;
 }
 
-const CreateNote = ({ onNoteCreated, onCancel }: CreateNoteProps) => {
-  const [newNote, setNewNote] = useState<CreateNoteRequest>({ 
-    title: '', 
-    content: ''
-  });
+const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [tags, setTags] = useState<TagDTO[]>([]);
+  const [openTagModal, setOpenTagModal] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    
-    if (!newNote.title.trim() || !newNote.content.trim()) {
+
+    if (!title.trim() || !content.trim()) {
       setError('Titolo e contenuto sono obbligatori');
       return;
     }
-    if (newNote.content.length > 280) {
+    if (content.length > 280) {
       setError('Il contenuto non può superare i 280 caratteri');
       return;
     }
-    if (newNote.title.length > 255) {
+    if (title.length > 255) {
       setError('Il titolo non può superare i 255 caratteri');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Chiama il backend per creare la nota
-      const response = await notesApi.createNote(newNote);
-      onNoteCreated(response.data);
-      setNewNote({ title: '', content: '' });
+      const res = await notesApi.createNote({
+        title,
+        content,
+        tagIds: tags.map(t => t.id), // ⬅️ inviamo i tag selezionati
+      });
+      onNoteCreated(res.data);
     } catch (err: any) {
       console.error('Error creating note:', err);
       if (err.response?.data?.message) {
@@ -45,7 +52,7 @@ const CreateNote = ({ onNoteCreated, onCancel }: CreateNoteProps) => {
       } else if (err.response?.data?.errors) {
         setError(err.response.data.errors.join(', '));
       } else {
-        setError('Errore nella creazione della nota. Verifica che il backend sia avviato.');
+        setError('Errore nella creazione della nota.');
       }
     } finally {
       setIsSubmitting(false);
@@ -55,81 +62,92 @@ const CreateNote = ({ onNoteCreated, onCancel }: CreateNoteProps) => {
   return (
     <div className="create-note-container">
       <div className="create-note-header">
-        <h1>Crea una Nuova Nota</h1>
-        <button onClick={onCancel} className="back-btn">
-          ← Torna alle Note
-        </button>
+        <h1>Crea Nuova Nota</h1>
+        <button onClick={onCancel} className="back-btn">← Annulla</button>
       </div>
 
-      <form onSubmit={handleSubmit} className="create-note-form">
-        {error && (
-          <div className="error-message" style={{
-            backgroundColor: '#fee',
-            color: '#c33',
-            padding: '10px',
-            borderRadius: '4px',
-            marginBottom: '20px',
-            border: '1px solid #fcc'
-          }}>
-            {error}
-          </div>
-        )}
-        
+      <form
+        onSubmit={handleSubmit}
+        className="create-note-form"
+        onKeyDownCapture={(e) => {
+        if (e.key === 'Enter') {
+          const el = e.target as HTMLElement;
+          if (el.closest('.tag-selector')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+        }}
+      >
+        {error && <div className="error-message">{error}</div>}
+
         <div className="form-group">
-          <label htmlFor="title">Titolo della nota</label>
+          <label htmlFor="title">Titolo</label>
           <input
             id="title"
             type="text"
             placeholder="Scrivi il titolo della tua nota..."
-            value={newNote.title}
-            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
             className="title-input"
             disabled={isSubmitting}
           />
-          <div className="char-count">{newNote.title.length}/255</div>
+          <div className="char-count">{title.length}/255</div>
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="content">Contenuto</label>
           <textarea
             id="content"
             placeholder="Scrivi il contenuto della tua nota..."
-            value={newNote.content}
-            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
             maxLength={280}
             className="content-textarea"
             rows={8}
             disabled={isSubmitting}
           />
-          <div className="char-count">{newNote.content.length}/280</div>
+          <div className="char-count">{content.length}/280</div>
         </div>
 
-        <div className="preview-section">
-          <h3>Anteprima</h3>
-          <div className="note-preview">
-            <div className="preview-header">
-              <h4>{newNote.title || 'Titolo della nota'}</h4>
-            </div>
-            <p className="preview-content">
-              {newNote.content || 'Il contenuto della nota apparirà qui...'}
-            </p>
+        {/* ---- SEZIONE TAG ---- */}
+        <div className="form-group">
+          <label>Tag</label>
+          <TagSelector value={tags} onChange={setTags} placeholder="Aggiungi tag…" />
+
+          <div className="tag-tools" style={{ marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              className="back-button"
+              onClick={() => setOpenTagModal(true)}
+              disabled={isSubmitting}
+            >
+              + Nuovo tag
+            </button>
           </div>
         </div>
-        
         <div className="form-actions">
           <button type="button" onClick={onCancel} className="cancel-btn">
             Annulla
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="submit-btn"
-            disabled={isSubmitting || !newNote.title.trim() || !newNote.content.trim()}
+            disabled={isSubmitting || !title.trim() || !content.trim()}
           >
-            {isSubmitting ? 'Creazione...' : 'Crea Nota'}
+            {isSubmitting ? 'Salvataggio…' : 'Crea Nota'}
           </button>
         </div>
       </form>
+      {/* Modal fuori dal form (usa portal) → nessun nesting form-in-form */}
+        <CreateTagModal
+          isOpen={openTagModal}
+          onClose={() => setOpenTagModal(false)}
+          onCreated={(t) =>
+            setTags(prev => prev.some(p => p.id === t.id) ? prev : [...prev, t])
+          }
+        />
     </div>
   );
 };

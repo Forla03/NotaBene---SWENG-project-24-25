@@ -1,26 +1,36 @@
 package com.notabene.service;
 
-import com.notabene.dto.CreateNoteRequest;
-import com.notabene.dto.NoteResponse;
-import com.notabene.dto.UpdateNoteRequest;
-import com.notabene.dto.NotePermissionsResponse;
-import com.notabene.entity.Note;
-import com.notabene.exception.NoteNotFoundException;
-import com.notabene.exception.UnauthorizedNoteAccessException;
-import com.notabene.model.User;
-import com.notabene.repository.NoteRepository;
-import com.notabene.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.notabene.dto.CreateNoteRequest;
+import com.notabene.dto.NotePermissionsResponse;
+import com.notabene.dto.NoteResponse;
+import com.notabene.dto.TagDTO;
+import com.notabene.dto.UpdateNoteRequest;
+import com.notabene.entity.Note;
+import com.notabene.exception.NoteNotFoundException;
+import com.notabene.exception.UnauthorizedNoteAccessException;
+import com.notabene.model.User;
+import com.notabene.repository.NoteRepository;
+import com.notabene.repository.TagRepository;
+import com.notabene.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -28,18 +38,32 @@ import java.util.stream.Collectors;
 public class NoteService {
     
     private final NoteRepository noteRepository;
+    private final TagRepository tagRepository;
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
 
     public NoteResponse createNote(CreateNoteRequest request) {
-        User currentUser = authenticationService.getCurrentUser();
-        log.info("Creating note for user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
-        
-        Note note = new Note(request.getTitle(), request.getContent(), currentUser);
-        Note savedNote = noteRepository.save(note);
-        log.info("Note created successfully with ID: {}", savedNote.getId());
-        
-        return convertToNoteResponse(savedNote, currentUser.getId());
+    User currentUser = authenticationService.getCurrentUser();
+    log.info("Creating note for user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
+
+    // crea entity
+    Note note = new Note(request.getTitle(), request.getContent(), currentUser);
+
+    // TAGS: aggiungi PRIMA del save
+    List<Long> ids = Optional.ofNullable(request.getTagIds()).orElseGet(List::of);
+    if (!ids.isEmpty()) {
+        var unique = new HashSet<>(ids);
+        var tags = new HashSet<>(tagRepository.findAllById(unique));
+        if (tags.size() != unique.size()) {
+            throw new IllegalArgumentException("Alcuni tagId non esistono");
+        }
+        note.getTags().addAll(tags); // usa la collection esistente
+    }
+
+    Note saved = noteRepository.save(note);
+    log.info("Note created successfully with ID: {}", saved.getId());
+
+    return convertToNoteResponse(saved, currentUser.getId());
     }
     
     @Transactional(readOnly = true)
@@ -108,29 +132,39 @@ public class NoteService {
         }
     }
     
-    public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
-        User currentUser = authenticationService.getCurrentUser();
-        
-        // Only users with write permission can update notes
-        Optional<Note> noteOpt = noteRepository.findByIdWithWritePermission(id, currentUser.getId());
-        
-        if (noteOpt.isPresent()) {
-            Note note = noteOpt.get();
-            // Update only non-null fields
-            if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
-                note.setTitle(request.getTitle());
-            }
-            if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
-                note.setContent(request.getContent());
-            }
-            note.setUpdatedAt(LocalDateTime.now());
-            
-            Note updatedNote = noteRepository.save(note);
-            return convertToNoteResponse(updatedNote, currentUser.getId());
-        } else {
-            throw new NoteNotFoundException("Note not found with id: " + id + " for current user or user has no write permission");
-        }
+    @Transactional
+public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
+    User currentUser = authenticationService.getCurrentUser();
+
+    // verifica permessi di scrittura
+    Note note = noteRepository.findByIdWithWritePermission(id, currentUser.getId())
+        .orElseThrow(() -> new NoteNotFoundException(
+            "Note not found with id: " + id + " for current user or user has no write permission"));
+
+    // aggiorna campi base
+    if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
+        note.setTitle(request.getTitle());
     }
+    if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
+        note.setContent(request.getContent());
+    }
+    note.setUpdatedAt(LocalDateTime.now());
+
+    // TAGS: sincronizza SOLO se il campo è presente (null = non toccare)
+    if (request.getTagIds() != null) {
+        var unique = new HashSet<>(request.getTagIds());
+        var tags = new HashSet<>(tagRepository.findAllById(unique));
+        if (tags.size() != unique.size()) {
+            throw new IllegalArgumentException("Alcuni tagId non esistono");
+        }
+        note.getTags().clear();
+        note.getTags().addAll(tags);
+    }
+
+    Note updated = noteRepository.save(note);
+    return convertToNoteResponse(updated, currentUser.getId());
+    }
+
     
     public void deleteNote(Long id) {
         User currentUser = authenticationService.getCurrentUser();
@@ -325,6 +359,13 @@ public class NoteService {
                 .collect(Collectors.toList());
             response.setWriters(writerUsernames);
         }
+
+        var tagDtos = note.getTags() == null ? List.<TagDTO>of()
+            : note.getTags().stream()
+                .map(t -> new TagDTO(t.getId(), t.getName()))
+                .sorted(Comparator.comparing(TagDTO::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        response.setTags(tagDtos);
         
         response.setIsOwner(isOwner);
         response.setCanEdit(canWrite);  // Can edit if owner or has write permission

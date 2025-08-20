@@ -76,11 +76,19 @@ export interface Note {
   canEdit?: boolean;
   canDelete?: boolean;
   canShare?: boolean;
+  tags?: TagDTO[];
 }
 
 export interface CreateNoteRequest {
   title: string;
   content: string;
+  tagIds?: number[];
+}
+
+export interface UpdateNoteRequest {
+  title: string;
+  content: string;
+  tagIds: number[];
 }
 
 export interface NotePermissions {
@@ -108,14 +116,12 @@ export interface RegisterPayload {
 // ✅ API NOTES
 // ====================
 export const notesApi = {
-  getAllNotes: () => {
-    return api.get<Note[]>('/notes');
-  },
+  getAllNotes: () => api.get<Note[]>('/notes'),
   getNote: (id: number) => api.get<Note>(`/notes/${id}`),
-  createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) =>
-    api.post<Note>('/notes', note),
-  updateNote: (id: number, note: Partial<Note>) =>
-    api.put<Note>(`/notes/${id}`, note),
+  createNote: (body: CreateNoteRequest) =>
+    api.post<Note>('/notes', body),
+  updateNote: (id: number, body: UpdateNoteRequest) =>
+    api.put<Note>(`/notes/${id}`, body),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
   
   // Cerca note
@@ -128,7 +134,7 @@ export const notesApi = {
   // ✅ PERMISSION ENDPOINTS
   // ====================
   // Get note permissions
-  getNotePermissions: (noteId: number) => 
+  getNotePermissions: (noteId: number) =>
     api.get<NotePermissions>(`/notes/${noteId}/permissions`),
   
   // Add reader permission
@@ -167,5 +173,62 @@ export const authApi = {
     clearAuthToken();
   },
 };
+
+// --- TIPI ---
+export type Folder = {
+  id: number;
+  name: string;
+  createdAt: string;
+  notes: { id: number; title: string }[]; // risposta leggera
+};
+
+export type CreateFolderRequest = {
+  name: string;
+};
+
+// --- CLIENT FOLDERS ---
+export const foldersApi = {
+  createFolder: (req: CreateFolderRequest) => {
+    return api.post('/folders', { name: req.name });
+  },
+  getFolders: () => api.get<Folder[]>('/folders'),
+  getFolder: (id: number) => api.get<Folder>(`/folders/${id}`),
+  deleteFolder: (id: number) => api.delete<void>(`/folders/${id}`),
+  addNoteToFolder: (folderId: number, noteId: number) =>
+    api.post<Folder>(`/folders/${folderId}/notes/${noteId}`),
+  removeNoteFromFolder: (folderId: number, noteId: number) =>
+    api.delete<Folder>(`/folders/${folderId}/notes/${noteId}`),
+};
+
+
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers = config.headers || {};
+    (config.headers as any)['X-Auth-Token'] = token; 
+  }
+  return config;
+});
+
+// Tipi
+export type TagDTO = { id: number; name: string };
+
+// Helpers opzionali per non ripeterti
+const getJSON = async <T>(url: string) => (await api.get<T>(url)).data;
+const postJSON = async <T, B = unknown>(url: string, body: B) =>
+  (await api.post<T>(url, body)).data;
+
+// --- Tags ---
+export async function searchTags(q: string = ""): Promise<TagDTO[]> {
+  const params = q ? `?q=${encodeURIComponent(q)}` : "";
+  // QUI il generico <TagDTO[]>
+  return getJSON<TagDTO[]>(`/tags${params}`);
+}
+
+export async function createTag(name: string): Promise<TagDTO> {
+  // QUI il generico <TagDTO>
+  return postJSON<TagDTO, { name: string }>(`/tags`, { name });
+}
+
 
 export default api;

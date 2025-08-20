@@ -1,12 +1,13 @@
 package com.notabene.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.notabene.entity.Note;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.notabene.entity.Note;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
@@ -16,6 +17,7 @@ public class NoteResponse {
     private String content;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<TagDTO> tags;
     
     // Permission fields
     private Long creatorId;
