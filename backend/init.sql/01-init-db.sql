@@ -24,15 +24,22 @@ CREATE TABLE IF NOT EXISTS notes (
     title       VARCHAR(255) NOT NULL,
     content     TEXT NOT NULL,
     user_id     BIGINT NOT NULL,
+    creator_id  BIGINT NOT NULL,
+    readers     BIGINT[],
+    writers     BIGINT[],
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_notes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notes_creator FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT content_length_check CHECK (char_length(content) <= 280)
 );
 
 -- Indexes per performance
 CREATE INDEX IF NOT EXISTS idx_notes_user_id     ON notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_creator_id  ON notes(creator_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created_at  ON notes(created_at DESC);
+
+
 
 -- Trigger per aggiornare updated_at ad ogni UPDATE
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$

@@ -49,13 +49,6 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
         String token = request.getHeader("X-Auth-Token");
         log.info("Request to {} - Token present: {}", request.getRequestURI(), token != null);
-        if (token != null && tokenStore.isValid(token)) {
-        String username = tokenStore.getUsername(token);
-        var auth = new UsernamePasswordAuthenticationToken(username, null, java.util.List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
-        chain.doFilter(request, response);
-        return;
-    }
         
         if (token != null && tokenStore.isValid(token)) {
             String username = tokenStore.getUsername(token);
