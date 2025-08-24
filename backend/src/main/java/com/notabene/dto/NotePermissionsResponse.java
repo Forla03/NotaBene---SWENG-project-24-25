@@ -10,10 +10,10 @@ import java.util.List;
 public class NotePermissionsResponse {
     private Long noteId;
     private Long creatorId;
-    private List<Long> readers;
-    private List<Long> writers;
+    private List<String> readers;
+    private List<String> writers;
     
-    public NotePermissionsResponse(Long noteId, Long creatorId, List<Long> readers, List<Long> writers) {
+    public NotePermissionsResponse(Long noteId, Long creatorId, List<String> readers, List<String> writers) {
         this.noteId = noteId;
         this.creatorId = creatorId;
         this.readers = readers;

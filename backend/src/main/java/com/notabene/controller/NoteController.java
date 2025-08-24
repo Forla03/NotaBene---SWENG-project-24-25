@@ -202,4 +202,14 @@ public class NoteController {
         noteService.addReaderByUsername(id, request.getUsername());
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Allow user to remove themselves from a shared note
+     */
+    @DeleteMapping("/{noteId}/leave")
+    public ResponseEntity<Void> leaveSharedNote(@PathVariable Long noteId) {
+        log.info("User leaving shared note with ID: {}", noteId);
+        noteService.leaveSharedNote(noteId);
+        return ResponseEntity.ok().build();
+    }
 }

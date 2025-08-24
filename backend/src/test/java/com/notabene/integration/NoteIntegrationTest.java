@@ -26,9 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 @SpringBootTest
@@ -332,9 +334,9 @@ class NoteIntegrationTest {
                 .andExpect(jsonPath("$.note_id").value(note.getId()))
                 .andExpect(jsonPath("$.creator_id").value(testUser.getId()))
                 .andExpect(jsonPath("$.readers").isArray())
-                .andExpect(jsonPath("$.readers[0]").value(otherUser.getId()))
+                .andExpect(jsonPath("$.readers[0]").value(otherUser.getUsername()))
                 .andExpect(jsonPath("$.writers").isArray())
-                .andExpect(jsonPath("$.writers[0]").value(otherUser.getId()));
+                .andExpect(jsonPath("$.writers[0]").value(otherUser.getUsername()));
     }
     
     @Test
@@ -650,5 +652,156 @@ class NoteIntegrationTest {
                 .content(objectMapper.writeValueAsString(updateRequest))
                 .with(csrf()))
                 .andExpect(status().isNotFound());
+    }
+
+    // ========================= SELF-REMOVAL TESTS =========================
+
+    @Test
+    @DisplayName("Should allow user to remove himself from shared note as reader")
+    void shouldAllowUserToRemoveHimselfFromSharedNoteAsReader() throws Exception {
+        // Crea una nota condivisa con otherUser come reader
+        Note note = new Note();
+        note.setTitle("Shared Note");
+        note.setContent("Shared Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        // Verifica che otherUser possa vedere la nota
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(note.getId()));
+
+        // otherUser si rimuove dalla nota
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isOk());
+
+        // Verifica che otherUser non veda più la nota
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+
+        // Verifica che la nota sia ancora visibile al creatore
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    @DisplayName("Should allow user to remove himself from shared note as writer")
+    void shouldAllowUserToRemoveHimselfFromSharedNoteAsWriter() throws Exception {
+        // Crea una nota condivisa con otherUser come writer
+        Note note = new Note();
+        note.setTitle("Collaborative Note");
+        note.setContent("Editable Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note.setWriters(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        // Verifica che otherUser possa vedere e modificare la nota
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].canEdit").value(true));
+
+        // otherUser si rimuove dalla nota
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isOk());
+
+        // Verifica che otherUser non veda più la nota
+        mockMvc.perform(get("/api/notes")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("Should not allow note creator to remove himself from own note")
+    void shouldNotAllowNoteCreatorToRemoveHimselfFromOwnNote() throws Exception {
+        // Crea una nota
+        Note note = new Note();
+        note.setTitle("Creator Note");
+        note.setContent("Creator Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        // Il creatore tenta di rimuoversi dalla propria nota
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Note creators cannot remove themselves from their own notes"));
+    }
+
+    @Test
+    @DisplayName("Should not allow user to remove himself from note where he has no permissions")
+    void shouldNotAllowUserToRemoveHimselfFromNoteWithoutPermissions() throws Exception {
+        // Crea una nota privata (solo per testUser)
+        Note note = new Note();
+        note.setTitle("Private Note");
+        note.setContent("Private Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note = noteRepository.save(note);
+
+        // otherUser tenta di rimuoversi dalla nota (ma non ha permessi)
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Should remove user from both readers and writers arrays when leaving note")
+    void shouldRemoveUserFromBothArraysWhenLeavingNote() throws Exception {
+        // Crea una nota condivisa con otherUser come reader e writer
+        Note note = new Note();
+        note.setTitle("Multi-permission Note");
+        note.setContent("Content");
+        note.setUser(testUser);
+        note.setCreatorId(testUser.getId());
+        note.setReaders(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note.setWriters(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
+        note = noteRepository.save(note);
+
+        // otherUser si rimuove dalla nota
+        mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
+                .header("X-Auth-Token", otherAuthToken)
+                .header("Authorization", "Bearer " + otherAuthToken)
+                .with(csrf()))
+                .andExpect(status().isOk());
+
+        // Verifica che otherUser sia stato rimosso da entrambi gli array
+        mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
+                .header("X-Auth-Token", authToken)
+                .header("Authorization", "Bearer " + authToken)
+                .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readers", hasSize(1)))
+                .andExpect(jsonPath("$.readers[0]").value(testUser.getId()))
+                .andExpect(jsonPath("$.writers", hasSize(1)))
+                .andExpect(jsonPath("$.writers[0]").value(testUser.getId()));
     }
 }

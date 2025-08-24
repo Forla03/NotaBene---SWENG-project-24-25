@@ -263,6 +263,46 @@ class NoteControllerTest {
         
         verify(noteService).searchNotes("test");
     }
+
+    @Test
+    @DisplayName("DELETE /api/notes/{noteId}/leave - Should allow user to leave shared note")
+    void shouldAllowUserToLeaveSharedNote() throws Exception {
+        Long noteId = 1L;
+        doNothing().when(noteService).leaveSharedNote(noteId);
+        
+        mockMvc.perform(delete("/api/notes/" + noteId + "/leave")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        
+        verify(noteService).leaveSharedNote(noteId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/notes/{noteId}/leave - Should return 400 when creator tries to leave own note")
+    void shouldReturn400WhenCreatorTriesToLeaveOwnNote() throws Exception {
+        Long noteId = 1L;
+        doThrow(new IllegalArgumentException("Note creators cannot remove themselves from their own notes"))
+                .when(noteService).leaveSharedNote(noteId);
+        
+        mockMvc.perform(delete("/api/notes/" + noteId + "/leave")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        
+        verify(noteService).leaveSharedNote(noteId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/notes/{noteId}/leave - Should return 404 when note not found")
+    void shouldReturn404WhenNoteNotFoundForLeave() throws Exception {
+        Long noteId = 999L;
+        doThrow(new NoteNotFoundException("Note not found")).when(noteService).leaveSharedNote(noteId);
+        
+        mockMvc.perform(delete("/api/notes/" + noteId + "/leave")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+        
+        verify(noteService).leaveSharedNote(noteId);
+    }
     
     
 }

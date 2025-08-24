@@ -173,6 +173,21 @@ h1 {
   background: #14a555;
 }
 
+.leave-shared-btn {
+  background: #ff9500;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.leave-shared-btn:hover {
+  background: #e8850f;
+}
+
 .edit-btn {
   background: #f45d22;
   color: white;

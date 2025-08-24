@@ -207,9 +207,26 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         // Only the note owner can view permissions
         Note note = getNoteWithOwnerPermission(noteId, currentUser);
         
+        // Convert user IDs to usernames
+        List<String> readerUsernames = new ArrayList<>();
+        List<String> writerUsernames = new ArrayList<>();
+        
+        if (note.getReaders() != null) {
+            for (Long userId : note.getReaders()) {
+                userRepository.findById(userId).ifPresent(user -> 
+                    readerUsernames.add(user.getUsername()));
+            }
+        }
+        
+        if (note.getWriters() != null) {
+            for (Long userId : note.getWriters()) {
+                userRepository.findById(userId).ifPresent(user -> 
+                    writerUsernames.add(user.getUsername()));
+            }
+        }
+        
         return new NotePermissionsResponse(noteId, note.getCreatorId(),
-                note.getReaders() != null ? note.getReaders() : new ArrayList<>(),
-                note.getWriters() != null ? note.getWriters() : new ArrayList<>());
+                readerUsernames, writerUsernames);
     }
 
     // Permission management methods - Only note owners can manage permissions
@@ -321,6 +338,30 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         removeWriterPermission(noteId, user.getId());
     }
 
+    /**
+     * Allow a user to remove themselves from a shared note
+     * This removes the user from both readers and writers arrays
+     */
+    @Transactional
+    public void leaveSharedNote(Long noteId) {
+        User currentUser = authenticationService.getCurrentUser();
+        
+        // Check if user has access to the note
+        Note note = noteRepository.findByIdWithReadPermission(noteId, currentUser.getId())
+                .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + noteId + " for current user"));
+        
+        // Prevent creator from removing themselves
+        if (note.getCreatorId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Note creators cannot remove themselves from their own notes");
+        }
+        
+        // Remove user from both readers and writers arrays
+        note.removeReader(currentUser.getId());
+        note.removeWriter(currentUser.getId());
+        
+        noteRepository.save(note);
+    }
+
     // Helper methods
     
     /**
@@ -328,7 +369,6 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
      */
     private NoteResponse convertToNoteResponse(Note note, Long currentUserId) {
         boolean isOwner = note.getCreatorId().equals(currentUserId);
-        boolean canRead = isOwner || (note.getReaders() != null && note.getReaders().contains(currentUserId));
         boolean canWrite = isOwner || (note.getWriters() != null && note.getWriters().contains(currentUserId));
         
         NoteResponse response = new NoteResponse();
