@@ -152,6 +152,10 @@ export const notesApi = {
   // Remove writer permission
   removeWriterPermission: (noteId: number, username: string) =>
     api.delete(`/notes/${noteId}/permissions/writers/${username}`),
+  
+  // Leave shared note (self-removal)
+  leaveSharedNote: (noteId: number) =>
+    api.delete(`/notes/${noteId}/leave`),
 };
 
 // ====================

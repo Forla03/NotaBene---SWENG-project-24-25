@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -493,6 +494,7 @@ class NoteServiceTest {
         Long noteId = 1L;
         
         when(noteRepository.findById(noteId)).thenReturn(Optional.of(sampleNote));
+        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         
         NotePermissionsResponse response = noteService.getNotePermissions(noteId);
         
@@ -501,9 +503,13 @@ class NoteServiceTest {
         assertEquals(noteId, response.getNoteId());
         assertNotNull(response.getReaders());
         assertNotNull(response.getWriters());
+        // Verify that usernames are returned instead of IDs
+        assertTrue(response.getReaders().contains(testUser.getUsername()));
+        assertTrue(response.getWriters().contains(testUser.getUsername()));
         
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findById(noteId);
+        verify(userRepository, atLeastOnce()).findById(testUser.getId());
     }
     
     @Test
@@ -564,5 +570,72 @@ class NoteServiceTest {
         
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findById(noteId);
+    }
+
+    // ========================= SELF-REMOVAL TESTS =========================
+
+    @Test
+    @DisplayName("Should allow user to remove himself from shared note")
+    void shouldAllowUserToRemoveHimselfFromSharedNote() {
+        Long noteId = 1L;
+        
+        // Create a note shared with the current user
+        Note sharedNote = new Note();
+        sharedNote.setId(noteId);
+        sharedNote.setTitle("Shared Note");
+        sharedNote.setContent("Shared Content");
+        sharedNote.setCreatorId(2L); // Different creator
+        sharedNote.setReaders(new ArrayList<>(List.of(2L, testUser.getId())));
+        sharedNote.setWriters(new ArrayList<>(List.of(2L, testUser.getId())));
+        
+        when(noteRepository.findByIdWithReadPermission(noteId, testUser.getId()))
+                .thenReturn(Optional.of(sharedNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(sharedNote);
+        
+        assertDoesNotThrow(() -> noteService.leaveSharedNote(noteId));
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findByIdWithReadPermission(noteId, testUser.getId());
+        verify(noteRepository).save(any(Note.class));
+    }
+
+    @Test
+    @DisplayName("Should not allow note creator to remove himself from own note")
+    void shouldNotAllowNoteCreatorToRemoveHimselfFromOwnNote() {
+        Long noteId = 1L;
+        
+        when(noteRepository.findByIdWithReadPermission(noteId, testUser.getId()))
+                .thenReturn(Optional.of(sampleNote));
+        
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.leaveSharedNote(noteId)
+        );
+        
+        assertEquals("Note creators cannot remove themselves from their own notes", exception.getMessage());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findByIdWithReadPermission(noteId, testUser.getId());
+        verify(noteRepository, never()).save(any(Note.class));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when user tries to leave note without permission")
+    void shouldThrowExceptionWhenUserTriesToLeaveNoteWithoutPermission() {
+        Long noteId = 1L;
+        
+        when(noteRepository.findByIdWithReadPermission(noteId, testUser.getId()))
+                .thenReturn(Optional.empty());
+        
+        NoteNotFoundException exception = assertThrows(
+                NoteNotFoundException.class,
+                () -> noteService.leaveSharedNote(noteId)
+        );
+        
+        assertEquals("Note not found with id: " + noteId + " for current user", exception.getMessage());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findByIdWithReadPermission(noteId, testUser.getId());
+        verify(noteRepository, never()).save(any(Note.class));
     }
 }

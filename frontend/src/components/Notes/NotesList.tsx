@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Note } from '../../services/api';
+import { Note, notesApi } from '../../services/api';
 import NotePermissions from './NotePermissions';
 import './NotesList.css';
 
@@ -26,6 +26,18 @@ const NotesList = ({
     if (window.confirm('Sei sicuro di voler eliminare questa nota?')) {
       try { onDeleteNote(id); }
       catch (err) { console.error('Error deleting note:', err); alert('Errore nell\'eliminazione della nota'); }
+    }
+  };
+
+  const handleLeaveSharedNote = async (id: number) => {
+    if (window.confirm('Sei sicuro di voler rimuoverti da questa nota condivisa? Non la vedrai più nella tua lista.')) {
+      try {
+        await notesApi.leaveSharedNote(id);
+        onNotesUpdated(); // Ricarica la lista delle note
+      } catch (err) {
+        console.error('Error leaving shared note:', err);
+        alert('Errore nel lasciare la nota condivisa');
+      }
     }
   };
 
@@ -65,9 +77,21 @@ const NotesList = ({
         </button>
       )}
 
-      {note.canDelete && (
+      {/* Elimina nota (solo se è il proprietario) */}
+      {note.canDelete && note.isOwner && (
         <button onClick={() => note.id && handleDelete(note.id)} className="delete-btn">
-          Elimina
+          🗑️ Elimina
+        </button>
+      )}
+
+      {/* Rimuoviti dalla nota condivisa (solo se NON è il proprietario) */}
+      {!note.isOwner && note.id && (
+        <button 
+          onClick={() => handleLeaveSharedNote(note.id!)} 
+          className="leave-shared-btn"
+          title="Rimuoviti da questa nota condivisa"
+        >
+          🚪 Esci dalla condivisione
         </button>
       )}
     </div>
