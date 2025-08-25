@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,4 +93,34 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     
     @Deprecated
     Page<Note> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    
+    // Advanced search method for multiple criteria
+    @Query(value = """
+        SELECT DISTINCT n.* FROM notes n 
+        LEFT JOIN note_tag nt ON n.id = nt.note_id 
+        LEFT JOIN tag t ON nt.tag_id = t.id 
+        LEFT JOIN users u ON n.creator_id = u.id 
+        LEFT JOIN folder_notes fn ON n.id = fn.note_id 
+        WHERE :userId = ANY(n.readers) 
+        AND (:query IS NULL OR :query = '' OR 
+             LOWER(n.title) LIKE LOWER(CONCAT('%', :query, '%')) OR 
+             LOWER(n.content) LIKE LOWER(CONCAT('%', :query, '%')))
+        AND (:author IS NULL OR :author = '' OR LOWER(u.username) LIKE LOWER(CONCAT('%', :author, '%')))
+        AND (CAST(:createdAfter AS timestamp) IS NULL OR n.created_at >= CAST(:createdAfter AS timestamp))
+        AND (CAST(:createdBefore AS timestamp) IS NULL OR n.created_at <= CAST(:createdBefore AS timestamp))
+        AND (CAST(:updatedAfter AS timestamp) IS NULL OR n.updated_at >= CAST(:updatedAfter AS timestamp))
+        AND (CAST(:updatedBefore AS timestamp) IS NULL OR n.updated_at <= CAST(:updatedBefore AS timestamp))
+        AND (:folderId IS NULL OR fn.folder_id = :folderId)
+        ORDER BY n.created_at DESC
+        """, nativeQuery = true)
+    List<Note> searchNotesAdvanced(
+        @Param("userId") Long userId,
+        @Param("query") String query,
+        @Param("author") String author,
+        @Param("createdAfter") LocalDateTime createdAfter,
+        @Param("createdBefore") LocalDateTime createdBefore,
+        @Param("updatedAfter") LocalDateTime updatedAfter,
+        @Param("updatedBefore") LocalDateTime updatedBefore,
+        @Param("folderId") Long folderId
+    );
 }
