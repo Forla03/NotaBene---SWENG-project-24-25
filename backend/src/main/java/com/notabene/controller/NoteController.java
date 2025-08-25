@@ -2,6 +2,7 @@ package com.notabene.controller;
 
 import com.notabene.dto.CreateNoteRequest;
 import com.notabene.dto.NoteResponse;
+import com.notabene.dto.SearchNotesRequest;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.dto.AddPermissionRequest;
 import com.notabene.dto.RemovePermissionRequest;
@@ -10,10 +11,13 @@ import com.notabene.service.NoteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -73,8 +77,166 @@ public class NoteController {
     
     @GetMapping("/search")
     public ResponseEntity<List<NoteResponse>> searchNotes(@RequestParam String q) {
-        List<NoteResponse> notes = noteService.searchNotes(q);
-        return ResponseEntity.ok(notes);
+        try {
+            log.info("Basic search - query: {}", q);
+            List<NoteResponse> notes = noteService.searchNotes(q);
+            log.info("Basic search completed successfully. Found {} notes", notes.size());
+            return ResponseEntity.ok(notes);
+        } catch (Exception e) {
+            log.error("Error in basic search - query: {}", q, e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Advanced search with multiple criteria (GET with query parameters)
+     * Supports ISO date format: 2025-08-25T10:30:00
+     */
+    @GetMapping("/search/advanced")
+    public ResponseEntity<List<NoteResponse>> searchNotesAdvanced(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String tags,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdAfter,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdBefore,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime updatedAfter,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime updatedBefore,
+            @RequestParam(required = false) Long folderId) {
+        
+        try {
+            
+            SearchNotesRequest request = new SearchNotesRequest();
+            request.setQuery(query);
+            if (tags != null && !tags.trim().isEmpty()) {
+                request.setTags(Arrays.asList(tags.split(",")));
+                log.info("Parsed tags: {}", request.getTags());
+            }
+            request.setAuthor(author);
+            request.setCreatedAfter(createdAfter);
+            request.setCreatedBefore(createdBefore);
+            request.setUpdatedAfter(updatedAfter);
+            request.setUpdatedBefore(updatedBefore);
+            request.setFolderId(folderId);
+            
+            log.info("Calling noteService.searchNotesAdvanced with request: {}", request);
+            List<NoteResponse> notes = noteService.searchNotesAdvanced(request);
+            log.info("Advanced search GET completed successfully. Found {} notes", notes.size());
+            
+            return ResponseEntity.ok(notes);
+        } catch (Exception e) {
+            log.error("Error in advanced search GET - query: {}, tags: {}, author: {}, folderId: {}", 
+                    query, tags, author, folderId, e);
+            log.error("Date parsing might have failed. Expected format: 2025-08-25T10:30:00", e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Advanced search with flexible date format (alternative endpoint)
+     * Supports: 2025-08-25 10:30:00 or 2025-08-25T10:30:00
+     */
+    @GetMapping("/search/advanced-flexible")
+    public ResponseEntity<List<NoteResponse>> searchNotesAdvancedFlexible(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String tags,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) String createdAfter,
+            @RequestParam(required = false) String createdBefore,
+            @RequestParam(required = false) String updatedAfter,
+            @RequestParam(required = false) String updatedBefore,
+            @RequestParam(required = false) Long folderId) {
+        
+        try {
+            log.info("Flexible advanced search - query: {}, tags: {}, author: {}, folderId: {}", query, tags, author, folderId);
+            log.info("Flexible search - RAW DATE STRINGS: createdAfter: [{}], createdBefore: [{}], updatedAfter: [{}], updatedBefore: [{}]", 
+                    createdAfter, createdBefore, updatedAfter, updatedBefore);
+            
+            SearchNotesRequest request = new SearchNotesRequest();
+            request.setQuery(query);
+            if (tags != null && !tags.trim().isEmpty()) {
+                request.setTags(Arrays.asList(tags.split(",")));
+            }
+            request.setAuthor(author);
+            
+            // Parse dates manually with flexible formats
+            request.setCreatedAfter(parseFlexibleDateTime(createdAfter, "createdAfter"));
+            request.setCreatedBefore(parseFlexibleDateTime(createdBefore, "createdBefore"));
+            request.setUpdatedAfter(parseFlexibleDateTime(updatedAfter, "updatedAfter"));
+            request.setUpdatedBefore(parseFlexibleDateTime(updatedBefore, "updatedBefore"));
+            request.setFolderId(folderId);
+            
+            List<NoteResponse> notes = noteService.searchNotesAdvanced(request);
+            
+            return ResponseEntity.ok(notes);
+        } catch (Exception e) {
+            log.error("Error in flexible advanced search", e);
+            throw e;
+        }
+    }
+    
+    private LocalDateTime parseFlexibleDateTime(String dateStr, String fieldName) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Try different formats
+            String trimmed = dateStr.trim();
+            
+            // Format 1: 2025-08-25T10:30:00 (ISO)
+            if (trimmed.contains("T")) {
+                LocalDateTime parsed = LocalDateTime.parse(trimmed);
+                log.info("Parsed {} with ISO format: {} -> {}", fieldName, trimmed, parsed);
+                return parsed;
+            }
+            
+            // Format 2: 2025-08-25 10:30:00 (space separated)
+            if (trimmed.contains(" ")) {
+                String isoFormat = trimmed.replace(" ", "T");
+                LocalDateTime parsed = LocalDateTime.parse(isoFormat);
+                log.info("Parsed {} with space format: {} -> {} -> {}", fieldName, trimmed, isoFormat, parsed);
+                return parsed;
+            }
+            
+            // Format 3: 2025-08-25 (date only, add time)
+            if (trimmed.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                String isoFormat = trimmed + "T00:00:00";
+                LocalDateTime parsed = LocalDateTime.parse(isoFormat);
+                log.info("Parsed {} with date-only format: {} -> {} -> {}", fieldName, trimmed, isoFormat, parsed);
+                return parsed;
+            }
+            
+            log.warn("Unable to parse date {} for field {}: unrecognized format", trimmed, fieldName);
+            return null;
+            
+        } catch (Exception e) {
+            log.error("Error parsing date {} for field {}: {}", dateStr, fieldName, e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Advanced search with POST request body
+     */
+    @PostMapping("/search/advanced")
+    public ResponseEntity<List<NoteResponse>> searchNotesAdvancedPost(
+            @Valid @RequestBody SearchNotesRequest request) {
+        
+        try {
+            log.info("Advanced search POST - query: {}, tags: {}, author: {}, folderId: {}", 
+                    request.getQuery(), request.getTags(), request.getAuthor(), request.getFolderId());
+            log.info("Advanced search POST - createdAfter: {}, createdBefore: {}, updatedAfter: {}, updatedBefore: {}", 
+                    request.getCreatedAfter(), request.getCreatedBefore(), 
+                    request.getUpdatedAfter(), request.getUpdatedBefore());
+            
+            List<NoteResponse> notes = noteService.searchNotesAdvanced(request);
+            log.info("Advanced search POST completed successfully. Found {} notes", notes.size());
+            
+            return ResponseEntity.ok(notes);
+        } catch (Exception e) {
+            log.error("Error in advanced search POST - request: {}", request, e);
+            throw e;
+        }
     }
     
     /**

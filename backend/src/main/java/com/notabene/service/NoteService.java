@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.notabene.dto.CreateNoteRequest;
 import com.notabene.dto.NotePermissionsResponse;
 import com.notabene.dto.NoteResponse;
+import com.notabene.dto.SearchNotesRequest;
 import com.notabene.dto.TagDTO;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.entity.Note;
@@ -175,11 +176,119 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
 
     @Transactional(readOnly = true)
     public List<NoteResponse> searchNotes(String search) {
-        User currentUser = authenticationService.getCurrentUser();
-        return noteRepository.searchNotesByUser(currentUser, search)
-                .stream()
-                .map(note -> convertToNoteResponse(note, currentUser.getId()))
-                .collect(Collectors.toList());
+        try {
+            User currentUser = authenticationService.getCurrentUser();
+            log.info("Basic search - user: {} (ID: {}), query: '{}'", 
+                    currentUser.getUsername(), currentUser.getId(), search);
+            
+            List<Note> notes = noteRepository.searchNotesWithReadPermission(currentUser.getId(), search);
+            log.info("Basic search - found {} notes", notes.size());
+            
+            List<NoteResponse> result = notes.stream()
+                    .map(note -> convertToNoteResponse(note, currentUser.getId()))
+                    .collect(Collectors.toList());
+            
+            log.info("Basic search completed successfully");
+            return result;
+        } catch (Exception e) {
+            log.error("Error in basic search - query: '{}'", search, e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Advanced search with multiple criteria
+     */
+    @Transactional(readOnly = true)
+    public List<NoteResponse> searchNotesAdvanced(SearchNotesRequest request) {
+        try {
+            User currentUser = authenticationService.getCurrentUser();
+            log.info("Advanced search - user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
+            log.info("Advanced search request - query: '{}', author: '{}', folderId: {}", 
+                    request.getQuery(), request.getAuthor(), request.getFolderId());
+            log.info("Advanced search request - tags: {}", request.getTags());
+            log.info("Advanced search request - createdAfter: {}, createdBefore: {}", 
+                    request.getCreatedAfter(), request.getCreatedBefore());
+            log.info("Advanced search request - updatedAfter: {}, updatedBefore: {}", 
+                    request.getUpdatedAfter(), request.getUpdatedBefore());
+            
+            log.info("Calling repository.searchNotesAdvanced with parameters...");
+            List<Note> notes = noteRepository.searchNotesAdvanced(
+                currentUser.getId(),
+                request.getQuery(),
+                request.getAuthor(),
+                request.getCreatedAfter(),
+                request.getCreatedBefore(),
+                request.getUpdatedAfter(),
+                request.getUpdatedBefore(),
+                request.getFolderId()
+            );
+            log.info("Repository search returned {} notes", notes.size());
+            
+            // Filter by tags if specified (post-processing since we removed it from SQL)
+            if (request.getTags() != null && !request.getTags().isEmpty()) {
+                log.info("Applying tag filter for tags: {}", request.getTags());
+                int beforeTagFilter = notes.size();
+                notes = notes.stream()
+                        .filter(note -> {
+                            if (note.getTags() == null || note.getTags().isEmpty()) {
+                                return false;
+                            }
+                            return note.getTags().stream()
+                                    .anyMatch(tag -> request.getTags().stream()
+                                            .anyMatch(requestTag -> tag.getName().toLowerCase()
+                                                    .contains(requestTag.toLowerCase())));
+                        })
+                        .collect(Collectors.toList());
+                log.info("Tag filter applied: {} notes before filter, {} notes after filter", 
+                        beforeTagFilter, notes.size());
+            }
+            
+            List<NoteResponse> result = notes.stream()
+                    .map(note -> convertToNoteResponse(note, currentUser.getId()))
+                    .collect(Collectors.toList());
+            
+            log.info("Advanced search completed successfully. Returning {} notes", result.size());
+            return result;
+        } catch (Exception e) {
+            log.error("Error in advanced search - request: {}", request, e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Search notes within a specific folder
+     */
+    @Transactional(readOnly = true)
+    public List<NoteResponse> searchNotesInFolder(Long folderId, SearchNotesRequest request) {
+        try {
+            User currentUser = authenticationService.getCurrentUser();
+            log.info("Folder search - user: {} (ID: {}), folderId: {}", 
+                    currentUser.getUsername(), currentUser.getId(), folderId);
+            log.info("Folder search request - query: '{}', author: '{}', tags: {}", 
+                    request.getQuery(), request.getAuthor(), request.getTags());
+            
+            // Set the folder ID in the request if not already set
+            SearchNotesRequest folderRequest = new SearchNotesRequest();
+            folderRequest.setQuery(request.getQuery());
+            folderRequest.setTags(request.getTags());
+            folderRequest.setAuthor(request.getAuthor());
+            folderRequest.setCreatedAfter(request.getCreatedAfter());
+            folderRequest.setCreatedBefore(request.getCreatedBefore());
+            folderRequest.setUpdatedAfter(request.getUpdatedAfter());
+            folderRequest.setUpdatedBefore(request.getUpdatedBefore());
+            folderRequest.setFolderId(folderId);
+            
+            log.info("Calling searchNotesAdvanced for folder search with folderId: {}", folderId);
+            List<NoteResponse> result = searchNotesAdvanced(folderRequest);
+            log.info("Folder search completed successfully. Found {} notes in folder {}", 
+                    result.size(), folderId);
+            
+            return result;
+        } catch (Exception e) {
+            log.error("Error in folder search - folderId: {}, request: {}", folderId, request, e);
+            throw e;
+        }
     }
 
     // New permission-based methods for the enhanced system

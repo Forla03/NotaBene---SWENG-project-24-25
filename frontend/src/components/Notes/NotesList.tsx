@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Note, notesApi } from '../../services/api';
+import { Note, notesApi, SearchNotesRequest, foldersApi } from '../../services/api';
 import NotePermissions from './NotePermissions';
+import SearchBar from './SearchBar';
+import AdvancedSearch from './AdvancedSearch';
 import './NotesList.css';
 
 interface NotesListProps {
@@ -21,6 +23,10 @@ const NotesList = ({
   onAddToFolder, onRemoveFromFolder, selectedFolderId
 }: NotesListProps) => {
   const [selectedNoteForPermissions, setSelectedNoteForPermissions] = useState<Note | null>(null);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [searchResults, setSearchResults] = useState<Note[] | null>(null);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Sei sicuro di voler eliminare questa nota?')) {
@@ -45,8 +51,67 @@ const NotesList = ({
   const handleClosePermissions = () => setSelectedNoteForPermissions(null);
   const handlePermissionsUpdated = () => onNotesUpdated();
 
+  // --- Gestione ricerca ---
+  const handleSimpleSearch = async (query: string) => {
+    try {
+      setSearchError(null);
+      
+      let response;
+      if (selectedFolderId) {
+        // Se siamo in una cartella, usa la ricerca nella cartella con solo il query
+        const folderSearchRequest: SearchNotesRequest = { query: query };
+        response = await foldersApi.searchNotesInFolder(selectedFolderId, folderSearchRequest);
+      } else {
+        // Altrimenti usa la ricerca globale semplice
+        response = await notesApi.searchNotes(query);
+      }
+      
+      setSearchResults(response.data);
+      setIsSearchActive(true);
+    } catch (error) {
+      console.error('Error during search:', error);
+      setSearchError('Errore durante la ricerca. Riprova più tardi.');
+    }
+  };
+
+  const handleAdvancedSearch = async (searchRequest: SearchNotesRequest) => {
+    try {
+      setSearchError(null);
+      
+      let response;
+      if (selectedFolderId) {
+        // Ricerca nella cartella specifica
+        response = await foldersApi.searchNotesInFolder(selectedFolderId, searchRequest);
+      } else {
+        // Ricerca globale
+        response = await notesApi.advancedSearch(searchRequest);
+      }
+      
+      setSearchResults(response.data);
+      setIsSearchActive(true);
+      setShowAdvancedSearch(false);
+    } catch (error) {
+      console.error('Error during advanced search:', error);
+      setSearchError('Errore durante la ricerca avanzata. Riprova più tardi.');
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchResults(null);
+    setIsSearchActive(false);
+    setSearchError(null);
+  };
+
+  const openAdvancedSearch = () => setShowAdvancedSearch(true);
+  const closeAdvancedSearch = () => setShowAdvancedSearch(false);
+
   const ownedNotes = notes.filter(note => note.isOwner);
   const sharedNotes = notes.filter(note => !note.isOwner);
+
+  // Note da mostrare: se c'è una ricerca attiva, mostra i risultati, altrimenti le note normali
+  const displayNotes = searchResults || notes;
+  const displayOwnedNotes = searchResults ? displayNotes.filter(note => note.isOwner) : ownedNotes;
+  const displaySharedNotes = searchResults ? displayNotes.filter(note => !note.isOwner) : sharedNotes;
 
   const renderActions = (note: Note, isOwnedBlock: boolean) => (
     <div className="note-actions">
@@ -111,16 +176,53 @@ const NotesList = ({
         )}
       </div>
 
+      {/* Barra di ricerca */}
+      <SearchBar
+        onSearch={handleSimpleSearch}
+        onAdvancedSearch={openAdvancedSearch}
+        onClearSearch={handleClearSearch}
+        isSearchActive={isSearchActive}
+        placeholder={selectedFolderId ? "Cerca in questa cartella..." : "Cerca nelle note..."}
+      />
+
+      {/* Messaggio di errore ricerca */}
+      {searchError && (
+        <div className="search-error">
+          <p style={{ color: 'red', textAlign: 'center', padding: '10px' }}>
+            {searchError}
+          </p>
+        </div>
+      )}
+
+      {/* Indicatore risultati ricerca */}
+      {isSearchActive && searchResults && (
+        <div className="search-results-info">
+          <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '10px' }}>
+            {searchResults.length === 0 
+              ? 'Nessun risultato trovato per la ricerca'
+              : `Trovati ${searchResults.length} risultati`
+            }
+          </p>
+        </div>
+      )}
+
       {/* Owned Notes Section */}
       <div className="notes-list">
-        <h2>{selectedFolderId ? 'Note' : `Le tue Note (${ownedNotes.length})`}</h2>
-        {(selectedFolderId ? notes : ownedNotes).length === 0 ? (
+        <h2>
+          {selectedFolderId 
+            ? 'Note' 
+            : isSearchActive 
+              ? `Risultati Ricerca - Le tue Note (${displayOwnedNotes.length})`
+              : `Le tue Note (${displayOwnedNotes.length})`
+          }
+        </h2>
+        {(selectedFolderId ? (searchResults || notes) : displayOwnedNotes).length === 0 ? (
           <div className="no-notes">
-            <p>Nessuna nota disponibile</p>
-            {!selectedFolderId && <p>Clicca su "Crea Nuova Nota" per iniziare!</p>}
+            <p>{isSearchActive ? 'Nessun risultato trovato' : 'Nessuna nota disponibile'}</p>
+            {!selectedFolderId && !isSearchActive && <p>Clicca su "Crea Nuova Nota" per iniziare!</p>}
           </div>
         ) : (
-          (selectedFolderId ? notes : ownedNotes).map((note) => (
+          (selectedFolderId ? (searchResults || notes) : displayOwnedNotes).map((note) => (
             <div key={note.id} className={`note-card ${note.isOwner ? 'owned-note' : 'shared-note'}`}>
               <div className="note-header">
                 <div className="note-title-section">
@@ -160,10 +262,15 @@ const NotesList = ({
       </div>
 
       {/* Shared Notes Section (fuori dalla vista cartella) */}
-      {!selectedFolderId && sharedNotes.length > 0 && (
+      {!selectedFolderId && displaySharedNotes.length > 0 && (
         <div className="notes-list">
-          <h2>Note Condivise con Te ({sharedNotes.length})</h2>
-          {sharedNotes.map((note) => (
+          <h2>
+            {isSearchActive 
+              ? `Risultati Ricerca - Note Condivise con Te (${displaySharedNotes.length})`
+              : `Note Condivise con Te (${displaySharedNotes.length})`
+            }
+          </h2>
+          {displaySharedNotes.map((note) => (
             <div key={note.id} className="note-card shared-note">
               <div className="note-header">
                 <div className="note-title-section">
@@ -205,6 +312,14 @@ const NotesList = ({
           onPermissionsUpdated={handlePermissionsUpdated}
         />
       )}
+
+      {/* Modale ricerca avanzata */}
+      <AdvancedSearch
+        isVisible={showAdvancedSearch}
+        onSearch={handleAdvancedSearch}
+        onClose={closeAdvancedSearch}
+        currentFolderId={selectedFolderId}
+      />
     </div>
   );
 };

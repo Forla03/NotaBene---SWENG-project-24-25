@@ -101,6 +101,17 @@ export interface AddPermissionRequest {
   username: string;
 }
 
+export interface SearchNotesRequest {
+  query?: string;
+  tags?: string[];
+  author?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
+  folderId?: number;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -124,8 +135,12 @@ export const notesApi = {
     api.put<Note>(`/notes/${id}`, body),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
   
-  // Cerca note
+  // Cerca note - metodi semplici per compatibilità
   searchNotes: (query: string) => api.get<Note[]>(`/notes/search?q=${encodeURIComponent(query)}`),
+  
+  // Ricerca avanzata - nuovo
+  advancedSearch: (searchRequest: SearchNotesRequest) => 
+    api.post<Note[]>('/notes/search/advanced', searchRequest),
   
   // Filtra per priorità
   getNotesByPriority: (priority: number) => api.get<Note[]>(`/notes/priority/${priority}`),
@@ -202,6 +217,10 @@ export const foldersApi = {
     api.post<Folder>(`/folders/${folderId}/notes/${noteId}`),
   removeNoteFromFolder: (folderId: number, noteId: number) =>
     api.delete<Folder>(`/folders/${folderId}/notes/${noteId}`),
+  
+  // Ricerca avanzata nelle cartelle - nuovo
+  searchNotesInFolder: (folderId: number, searchRequest: SearchNotesRequest) =>
+    api.post<Note[]>(`/folders/${folderId}/search`, searchRequest),
 };
 
 
