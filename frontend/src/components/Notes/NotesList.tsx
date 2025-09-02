@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Note, notesApi, SearchNotesRequest, foldersApi } from '../../services/api';
 import NotePermissions from './NotePermissions';
+import NoteVersions from './NoteVersions';
 import SearchBar from './SearchBar';
 import AdvancedSearch from './AdvancedSearch';
 import './NotesList.css';
@@ -23,6 +24,7 @@ const NotesList = ({
   onAddToFolder, onRemoveFromFolder, selectedFolderId
 }: NotesListProps) => {
   const [selectedNoteForPermissions, setSelectedNoteForPermissions] = useState<Note | null>(null);
+  const [selectedNoteForVersions, setSelectedNoteForVersions] = useState<Note | null>(null);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [searchResults, setSearchResults] = useState<Note[] | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -48,6 +50,21 @@ const NotesList = ({
   };
 
   const handleManagePermissions = (note: Note) => setSelectedNoteForPermissions(note);
+
+  const handleViewVersions = (note: Note) => setSelectedNoteForVersions(note);
+  
+  const handleVersionRestored = (restoredNote: Note) => {
+    console.log('📥 handleVersionRestored chiamato con:', restoredNote);
+    
+    // Aggiorna la lista delle note ricaricando i dati dal server
+    console.log('🔄 Chiamando onNotesUpdated per ricaricare la lista...');
+    onNotesUpdated();
+    
+    // La modale si chiude automaticamente, non serve gestirla qui
+    // setSelectedNoteForVersions(null);
+    
+    console.log('✅ Nota ripristinata con successo:', restoredNote.title);
+  };
   const handleClosePermissions = () => setSelectedNoteForPermissions(null);
   const handlePermissionsUpdated = () => onNotesUpdated();
 
@@ -120,6 +137,11 @@ const NotesList = ({
           ✏️ Modifica
         </button>
       )}
+
+      {/* Visualizza versioni */}
+      <button onClick={() => handleViewVersions(note)} className="versions-btn" title="Visualizza versioni">
+        📝 Versioni
+      </button>
 
       {/* Aggiungi a cartella */}
       {(note.canEdit || note.isOwner) && onAddToFolder && (
@@ -226,7 +248,12 @@ const NotesList = ({
             <div key={note.id} className={`note-card ${note.isOwner ? 'owned-note' : 'shared-note'}`}>
               <div className="note-header">
                 <div className="note-title-section">
-                  <h3 className="note-title">{note.title}</h3>
+                  <h3 className="note-title">
+                    {note.title}
+                    {note.currentVersion && (
+                      <span className="version-indicator">v{note.currentVersion}</span>
+                    )}
+                  </h3>
                   {note.isOwner ? (
                     <span className="note-badge owner-badge">Proprietario</span>
                   ) : (
@@ -274,7 +301,12 @@ const NotesList = ({
             <div key={note.id} className="note-card shared-note">
               <div className="note-header">
                 <div className="note-title-section">
-                  <h3 className="note-title">{note.title}</h3>
+                  <h3 className="note-title">
+                    {note.title}
+                    {note.currentVersion && (
+                      <span className="version-indicator">v{note.currentVersion}</span>
+                    )}
+                  </h3>
                   <span className="note-badge shared-badge">Condivisa</span>
                 </div>
                 <div className="note-dates">
@@ -310,6 +342,15 @@ const NotesList = ({
           note={selectedNoteForPermissions}
           onClose={handleClosePermissions}
           onPermissionsUpdated={handlePermissionsUpdated}
+        />
+      )}
+
+      {selectedNoteForVersions && (
+        <NoteVersions
+          noteId={selectedNoteForVersions.id!}
+          currentNote={selectedNoteForVersions}
+          onVersionRestored={handleVersionRestored}
+          onClose={() => setSelectedNoteForVersions(null)}
         />
       )}
 

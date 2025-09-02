@@ -312,3 +312,38 @@ h1 {
   padding: 0.22rem 0.55rem;
   font-size: 0.85rem;
 }
+
+/* Version styles */
+.versions-btn {
+  background: #7c3aed;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 8px;
+}
+
+.versions-btn:hover {
+  background: #6d28d9;
+}
+
+.version-indicator {
+  display: inline-block;
+  background: #8b5cf6;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.note-title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}

@@ -1,6 +1,5 @@
 package com.notabene.service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -42,6 +41,8 @@ public class NoteService {
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
+    private final com.notabene.repository.NoteVersionRepository noteVersionRepository;
+    private final NoteVersioningService noteVersioningService;
 
     public NoteResponse createNote(CreateNoteRequest request) {
     User currentUser = authenticationService.getCurrentUser();
@@ -63,6 +64,10 @@ public class NoteService {
 
     Note saved = noteRepository.save(note);
     log.info("Note created successfully with ID: {}", saved.getId());
+
+    // Crea la prima versione della nota appena creata
+    noteVersioningService.updateNoteWithVersioning(
+        saved.getId(), saved.getTitle(), saved.getContent(), currentUser.getId());
 
     return convertToNoteResponse(saved, currentUser.getId());
     }
@@ -142,14 +147,14 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         .orElseThrow(() -> new NoteNotFoundException(
             "Note not found with id: " + id + " for current user or user has no write permission"));
 
-    // aggiorna campi base
-    if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
-        note.setTitle(request.getTitle());
-    }
-    if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
-        note.setContent(request.getContent());
-    }
-    note.setUpdatedAt(LocalDateTime.now());
+    // Usa il servizio di versioning per aggiornare la nota (crea automaticamente la versione)
+    String newTitle = request.getTitle() != null && !request.getTitle().trim().isEmpty() 
+        ? request.getTitle() : note.getTitle();
+    String newContent = request.getContent() != null && !request.getContent().trim().isEmpty() 
+        ? request.getContent() : note.getContent();
+    
+    Note updated = noteVersioningService.updateNoteWithVersioning(
+        id, newTitle, newContent, currentUser.getId());
 
     // TAGS: sincronizza SOLO se il campo è presente (null = non toccare)
     if (request.getTagIds() != null) {
@@ -158,11 +163,10 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         if (tags.size() != unique.size()) {
             throw new IllegalArgumentException("Alcuni tagId non esistono");
         }
-        note.getTags().clear();
-        note.getTags().addAll(tags);
+        updated.getTags().clear();
+        updated.getTags().addAll(tags);
+        updated = noteRepository.save(updated);
     }
-
-    Note updated = noteRepository.save(note);
     return convertToNoteResponse(updated, currentUser.getId());
     }
 
@@ -476,7 +480,7 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
     /**
      * Convert Note entity to NoteResponse DTO with permission flags
      */
-    private NoteResponse convertToNoteResponse(Note note, Long currentUserId) {
+    public NoteResponse convertToNoteResponse(Note note, Long currentUserId) {
         boolean isOwner = note.getCreatorId().equals(currentUserId);
         boolean canWrite = isOwner || (note.getWriters() != null && note.getWriters().contains(currentUserId));
         
@@ -487,6 +491,13 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         response.setCreatedAt(note.getCreatedAt());
         response.setUpdatedAt(note.getUpdatedAt());
         response.setCreatorId(note.getCreatorId());
+        
+        // Get current version number (number of versions + 1 since versions start from 1)
+        Long versionCount = noteVersionRepository.countByNoteId(note.getId());
+        response.setCurrentVersion(versionCount.intValue() + 1);
+        
+        // Set the version pointer (which version is currently being displayed)
+        response.setCurrentVersionPointer(note.getCurrentVersionPointer());
         
         // Convert user IDs to usernames
         if (note.getReaders() != null && !note.getReaders().isEmpty()) {

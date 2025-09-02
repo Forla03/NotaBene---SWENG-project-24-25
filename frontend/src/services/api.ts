@@ -68,7 +68,12 @@ export interface Note {
   content: string;
   createdAt?: string;
   updatedAt?: string;
+  lastModifiedAt?: string;  // Data ultima modifica
+  lastModifiedBy?: number;  // ID utente che ha fatto l'ultima modifica
+  lastModifiedByUsername?: string; // Username dell'utente che ha fatto l'ultima modifica
   creatorId?: number;
+  currentVersion?: number;  // Versione corrente della nota
+  currentVersionPointer?: number; // Quale versione è attualmente visualizzata
   readers?: string[];
   writers?: string[];
   isShared?: boolean;
@@ -77,6 +82,46 @@ export interface Note {
   canDelete?: boolean;
   canShare?: boolean;
   tags?: TagDTO[];
+}
+
+// ✅ VERSIONING TYPES
+export interface NoteVersion {
+  id: number;
+  noteId: number;
+  versionNumber: number;
+  title: string;
+  content: string;
+  readers: number[];
+  writers: number[];
+  createdBy: number;
+  createdByUsername?: string; // Username dell'utente che ha creato la versione
+  noteCreatorId: number;
+  createdAt: string;
+  originalCreatedAt: string;
+  originalUpdatedAt: string;
+  isRestored: boolean; // Indica se questa versione è stata ripristinata
+  restoredFromVersion?: number; // Da quale versione è stata ripristinata (se applicabile)
+}
+
+// ✅ ENHANCED COMPARISON TYPES
+export interface DiffSegment {
+  text: string;
+  type: 'EQUAL' | 'ADDED' | 'REMOVED';
+}
+
+export interface TextDiffDTO {
+  leftText: string;
+  rightText: string;
+  leftSegments: DiffSegment[];
+  rightSegments: DiffSegment[];
+}
+
+export interface EnhancedVersionComparisonDTO {
+  leftVersion: NoteVersion;
+  rightVersion: NoteVersion;
+  titleDiff: TextDiffDTO;
+  contentDiff: TextDiffDTO;
+  hasChanges: boolean;
 }
 
 export interface CreateNoteRequest {
@@ -253,5 +298,49 @@ export async function createTag(name: string): Promise<TagDTO> {
   return postJSON<TagDTO, { name: string }>(`/tags`, { name });
 }
 
+// ====================
+// ✅ NOTE VERSIONING API
+// ====================
+
+/**
+ * Get version history for a note
+ */
+export async function getVersionHistory(noteId: number): Promise<NoteVersion[]> {
+  const response = await api.get<NoteVersion[]>(`/notes/${noteId}/versions`);
+  return response.data;
+}
+
+/**
+ * Get a specific version of a note
+ */
+export async function getSpecificVersion(noteId: number, versionNumber: number): Promise<NoteVersion> {
+  const response = await api.get<NoteVersion>(`/notes/${noteId}/versions/${versionNumber}`);
+  return response.data;
+}
+
+/**
+ * Restore a note to a specific version
+ */
+export async function restoreToVersion(noteId: number, versionNumber: number): Promise<Note> {
+  console.log(`🔄 API: Chiamando restoreToVersion per nota ${noteId}, versione ${versionNumber}`);
+  try {
+    const response = await api.post<Note>(`/notes/${noteId}/versions/${versionNumber}/restore`);
+    console.log('✅ API: Restore completato con successo:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ API: Errore durante restore:', error);
+    throw error;
+  }
+}
+
+/**
+ * Compare two versions of a note with enhanced character-level diff
+ */
+export async function compareVersionsEnhanced(noteId: number, oldVersion: number, newVersion: number): Promise<EnhancedVersionComparisonDTO> {
+  const response = await api.get<EnhancedVersionComparisonDTO>(`/notes/${noteId}/versions/compare`, {
+    params: { oldVersion, newVersion }
+  });
+  return response.data;
+}
 
 export default api;

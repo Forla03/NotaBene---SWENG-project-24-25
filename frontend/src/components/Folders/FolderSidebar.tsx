@@ -31,11 +31,6 @@ const FolderSidebar = ({ selectedFolderId, onSelectFolder }: Props) => {
     load();
   }, []);
 
-  const selectedFolderName = useMemo(
-    () => folders.find(f => f.id === selectedFolderId)?.name || null,
-    [folders, selectedFolderId]
-  );
-
   const handleCreate = async () => {
   if (!name.trim()) return;
   try {

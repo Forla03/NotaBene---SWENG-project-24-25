@@ -1,0 +1,541 @@
+/* NoteVersions.css */
+
+.note-versions-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.note-versions-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: 90vw;
+  max-width: 1200px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.note-versions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.note-versions-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Indicatore versione corrente */
+.current-version-indicator {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.header-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.refresh-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+  background: #2563eb;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.error-message {
+  background-color: #fef2f2;
+  color: #dc2626;
+  padding: 12px 24px;
+  border-left: 4px solid #dc2626;
+  margin: 0;
+}
+
+.note-versions-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.versions-list {
+  width: 400px;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  background-color: #f9fafb;
+}
+
+.versions-list h3 {
+  margin: 0;
+  padding: 16px 20px;
+  background-color: #e5e7eb;
+  color: #374151;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.version-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: white;
+  transition: background-color 0.2s;
+}
+
+.version-item:hover {
+  background-color: #f3f4f6;
+}
+
+.version-item.current-version {
+  background-color: #dbeafe;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Stile per la versione attualmente attiva */
+.version-item.active-version {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-left: 4px solid #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+/* Stile per le versioni ripristinate */
+.version-item.restored-version {
+  background: linear-gradient(135deg, #fef3c7, #fed7aa);
+  border-left: 4px solid #f59e0b;
+}
+
+.version-item.restored-version.active-version {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-left: 4px solid #10b981;
+}
+
+.version-item.active-version:hover {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+}
+
+.version-info {
+  margin-bottom: 12px;
+}
+
+.version-number {
+  font-weight: 600;
+  color: #1f2937;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.version-date {
+  font-size: 0.875rem;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.version-author {
+  font-size: 0.875rem;
+  color: #6b7280;
+  display: block;
+}
+
+.version-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.version-actions button {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: white;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.version-actions button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.version-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.view-button {
+  border-color: #3b82f6 !important;
+  color: #3b82f6 !important;
+}
+
+.view-button:hover:not(:disabled) {
+  background-color: #dbeafe !important;
+}
+
+.view-button.current {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.restore-button {
+  border-color: #059669 !important;
+  color: #059669 !important;
+}
+
+.restore-button:hover:not(:disabled) {
+  background-color: #d1fae5 !important;
+}
+
+.compare-button {
+  border-color: #7c3aed !important;
+  color: #7c3aed !important;
+}
+
+.compare-button:hover:not(:disabled) {
+  background-color: #ede9fe !important;
+}
+
+.compare-button.enhanced {
+  border-color: #059669 !important;
+  color: #059669 !important;
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+}
+
+.compare-button.enhanced:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.2);
+}
+
+.version-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.no-selection {
+  color: #6b7280;
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+.no-versions {
+  color: #6b7280;
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.version-details h3 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.version-metadata {
+  background-color: #f9fafb;
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.version-metadata p {
+  margin: 0 0 8px 0;
+  color: #374151;
+}
+
+.version-metadata p:last-child {
+  margin-bottom: 0;
+}
+
+.version-content h4 {
+  margin: 24px 0 12px 0;
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.content-display {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.content-display pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #374151;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  line-height: 1.5;
+}
+
+/* Version Comparison Styles */
+.version-comparison h3 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.comparison-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f3f4f6;
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.comparison-info span {
+  font-weight: 600;
+  color: #374151;
+}
+
+.close-comparison {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.close-comparison:hover {
+  background-color: #4b5563;
+}
+
+.diff-section {
+  margin-bottom: 24px;
+}
+
+.diff-section h4 {
+  margin: 0 0 12px 0;
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.diff-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.diff-old, .diff-new {
+  padding: 16px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.diff-old {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.diff-new {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.diff-old pre, .diff-new pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.no-changes {
+  text-align: center;
+  color: #6b7280;
+  padding: 40px 20px;
+  font-style: italic;
+  background-color: #f9fafb;
+  border-radius: 6px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .note-versions-content {
+    width: 95vw;
+    height: 90vh;
+  }
+  
+  .note-versions-body {
+    flex-direction: column;
+  }
+  
+  .versions-list {
+    width: 100%;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .diff-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .version-actions {
+    justify-content: flex-start;
+  }
+  
+  .version-actions button {
+    flex: 1;
+    min-width: 70px;
+  }
+}
+
+/* Messaggio di stato per il confronto */
+.comparison-status {
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 16px 0;
+  font-size: 14px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Stili per versioni selezionate per confronto */
+.version-item.selected-for-comparison {
+  background-color: #ede9fe;
+  border: 2px solid #7c3aed;
+  border-radius: 8px;
+}
+
+.version-item.selected-for-comparison .version-info {
+  background-color: #f3f4f6;
+}
+
+/* Miglioramenti per il confronto */
+.no-changes {
+  text-align: center;
+  padding: 24px;
+  background-color: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.no-changes h4 {
+  color: #059669;
+  margin: 0 0 12px 0;
+}
+
+.no-changes p {
+  color: #047857;
+  margin: 8px 0;
+}
+
+.identical-content {
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.identical-content h5 {
+  color: #374151;
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.content-preview {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.content-preview pre {
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Stili migliorati per le differenze */
+.diff-section h5 {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  padding: 8px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
