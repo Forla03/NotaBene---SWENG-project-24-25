@@ -37,6 +37,7 @@ import com.notabene.dto.NoteResponse;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.exception.NoteNotFoundException;
 import com.notabene.service.NoteService;
+import org.springframework.context.annotation.Import;
 
 @WebMvcTest(
     controllers = {NoteController.class},
@@ -48,6 +49,7 @@ import com.notabene.service.NoteService;
         }
     )
 )
+@Import(com.notabene.exception.GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @TestPropertySource(properties = {

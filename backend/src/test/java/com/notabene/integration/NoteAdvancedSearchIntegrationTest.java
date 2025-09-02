@@ -18,6 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -65,12 +67,17 @@ class NoteAdvancedSearchIntegrationTest {
         folderRepository.deleteAll();
         folderNoteRepository.deleteAll();
 
-        // Create test user
-        testUser = new User();
-        testUser.setUsername("testuser");
-        testUser.setEmail("test@example.com");
-        testUser.setPassword(passwordEncoder.encode("password123"));
-        testUser = userRepository.save(testUser);
+        // Create test user - check if already exists first
+        Optional<User> existingUser = userRepository.findByEmail("test@example.com");
+        if (existingUser.isPresent()) {
+            testUser = existingUser.get();
+        } else {
+            testUser = new User();
+            testUser.setUsername("testuser");
+            testUser.setEmail("test@example.com");
+            testUser.setPassword(passwordEncoder.encode("password123"));
+            testUser = userRepository.save(testUser);
+        }
 
         // For authentication in integration tests, we'll need to set up a proper token
         // This is a simplified approach - in real scenarios you'd authenticate properly

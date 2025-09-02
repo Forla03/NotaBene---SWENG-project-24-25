@@ -19,6 +19,10 @@ public class NoteResponse {
     private LocalDateTime updatedAt;
     private List<TagDTO> tags;
     
+    // Versioning information
+    private Integer currentVersion;
+    private Integer currentVersionPointer; // Which version is currently being displayed
+    
     // Permission fields
     private Long creatorId;
     private List<String> readers;
@@ -41,6 +45,7 @@ public class NoteResponse {
         this.createdAt = note.getCreatedAt();
         this.updatedAt = note.getUpdatedAt();
         this.creatorId = note.getCreatorId();
+        // currentVersion will be set separately by the service
         // readers and writers will be set separately with usernames
         // Default permission flags - should be set explicitly via setters
         this.isOwner = false;

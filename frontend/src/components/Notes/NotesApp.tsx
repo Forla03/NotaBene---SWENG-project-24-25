@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import NotesList from './NotesList';
 import CreateNote from './CreateNote';
 import EditNote from './EditNote';
-import { Note, notesApi, Folder, foldersApi } from '../../services/api';
+import { Note, notesApi, foldersApi } from '../../services/api';
 import FolderSidebar from '../Folders/FolderSidebar';
 import AddToFolderModal from '../Folders/AddToFolderModal';
 
@@ -54,10 +54,12 @@ const NotesApp = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('🌐 Effettuando chiamata API getAllNotes...');
       const response = await notesApi.getAllNotes();
+      console.log('📊 Ricevute', response.data.length, 'note dal server');
       setNotes(response.data);
     } catch (err: any) {
-      console.error('Error loading notes:', err);
+      console.error('❌ Error loading notes:', err);
       setError('Errore nel caricamento delle note. Verifica che il backend sia avviato.');
     } finally {
       setLoading(false);
@@ -93,7 +95,11 @@ const NotesApp = () => {
     }
   };
 
-  const handleNotesUpdated = () => { loadNotes(); };
+  const handleNotesUpdated = async () => { 
+    console.log('🔄 handleNotesUpdated chiamato, ricaricando note...');
+    await loadNotes(); 
+    console.log('✅ Note ricaricate con successo');
+  };
 
   // --- Cartelle: aggiungi / rimuovi
   const openAddToFolder = (note: Note) => setAddToFolderNote(note);

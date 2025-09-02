@@ -74,6 +74,10 @@ public class Note {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // Version pointer - indicates which version is currently "active"
+    @Column(name = "current_version_pointer")
+    private Integer currentVersionPointer;
+
     // ...
     @ManyToMany
     @JoinTable(
@@ -207,6 +211,50 @@ public class Note {
      */
     public boolean isCreator(Long userId) {
         return userId != null && userId.equals(this.creatorId);
+    }
+    
+    // ==================== MEMENTO PATTERN METHODS ====================
+    
+    /**
+     * Create a memento capturing the current state of this note
+     */
+    public com.notabene.service.memento.NoteMemento createMemento() {
+        return new com.notabene.service.memento.NoteMemento(
+            this.title,
+            this.content,
+            this.creatorId,
+            this.readers,
+            this.writers,
+            this.tags,
+            this.createdAt,
+            this.updatedAt
+        );
+    }
+    
+    /**
+     * Restore this note's state from a memento
+     */
+    public void restoreFromMemento(com.notabene.service.memento.NoteMemento memento) {
+        if (memento == null) {
+            throw new IllegalArgumentException("Memento cannot be null");
+        }
+        
+        this.title = memento.getTitle();
+        this.content = memento.getContent();
+        this.creatorId = memento.getCreatorId();
+        
+        // Clear and restore collections
+        this.readers.clear();
+        this.readers.addAll(memento.getReaders());
+        
+        this.writers.clear();
+        this.writers.addAll(memento.getWriters());
+        
+        this.tags.clear();
+        this.tags.addAll(memento.getTags());
+        
+        // Note: We don't restore createdAt/updatedAt as they should be managed by the system
+        // The memento preserves the original timestamps for historical reference
     }
 
 }

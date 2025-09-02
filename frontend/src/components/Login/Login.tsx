@@ -18,7 +18,7 @@ export default function Login({ onLoginSuccess, onCancel }: LoginProps) {
     
     try {
       // Chiama login e aspetta token
-      const token = await authApi.login({ email, password });
+      await authApi.login({ email, password });
       
       // Il token è già salvato in setAuthToken(), dobbiamo solo salvare l'username
       const username = email.split("@")[0];

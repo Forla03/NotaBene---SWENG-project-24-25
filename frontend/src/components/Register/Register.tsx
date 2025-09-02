@@ -16,8 +16,7 @@ const Register = ({ navigateTo, onBack, onSuccessfulRegistration }: RegisterProp
     confirmPassword: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false); 
-  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -68,7 +67,7 @@ const Register = ({ navigateTo, onBack, onSuccessfulRegistration }: RegisterProp
       });
   
       // Poi login automatico
-      const token = await authApi.login({
+      await authApi.login({
         email: formData.email,
         password: formData.password
       });
@@ -83,9 +82,9 @@ const Register = ({ navigateTo, onBack, onSuccessfulRegistration }: RegisterProp
     } catch (err: any) {
       console.error("Registration error:", err);
       if (err.response?.status === 409) {
-        setErrorMessage(err.response.data?.error || "Email già in uso");
+        setErrors({ general: err.response.data?.error || "Email già in uso" });
       } else {
-        setErrorMessage(`Registrazione fallita: ${err.response?.data?.message || err.message || 'Errore sconosciuto'}`);
+        setErrors({ general: `Registrazione fallita: ${err.response?.data?.message || err.message || 'Errore sconosciuto'}` });
       }
     } finally {
       setIsSubmitting(false);

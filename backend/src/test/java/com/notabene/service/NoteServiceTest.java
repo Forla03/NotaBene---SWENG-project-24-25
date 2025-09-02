@@ -282,7 +282,7 @@ class NoteServiceTest {
     @DisplayName("Should search notes for current user only")
     void shouldSearchNotesSuccessfully() {
         List<Note> searchResults = Arrays.asList(sampleNote);
-        when(noteRepository.searchNotesByUser(testUser, "test")).thenReturn(searchResults);
+        when(noteRepository.searchNotesWithReadPermission(1L, "test")).thenReturn(searchResults);
         
         List<NoteResponse> result = noteService.searchNotes("test");
         
@@ -292,13 +292,13 @@ class NoteServiceTest {
         assertEquals("Test Note", result.get(0).getTitle());
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).searchNotesByUser(testUser, "test");
+        verify(noteRepository).searchNotesWithReadPermission(1L, "test");
     }
     
     @Test
     @DisplayName("Should return empty list when search finds no results for current user")
     void shouldReturnEmptyListWhenSearchFindsNoResults() {
-        when(noteRepository.searchNotesByUser(testUser, "nonexistent")).thenReturn(Arrays.asList());
+        when(noteRepository.searchNotesWithReadPermission(1L, "nonexistent")).thenReturn(Arrays.asList());
         
         List<NoteResponse> result = noteService.searchNotes("nonexistent");
         
@@ -306,7 +306,7 @@ class NoteServiceTest {
         assertTrue(result.isEmpty());
         
         verify(authenticationService).getCurrentUser();
-        verify(noteRepository).searchNotesByUser(testUser, "nonexistent");
+        verify(noteRepository).searchNotesWithReadPermission(1L, "nonexistent");
     }
     
     @Test
