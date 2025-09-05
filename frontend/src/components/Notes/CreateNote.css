@@ -66,6 +66,9 @@
   outline: none;
   transition: border-color 0.2s;
   background: white;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .title-input {
@@ -98,6 +101,10 @@
   font-family: inherit;
   transition: border-color 0.2s;
   background: white;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .char-count {

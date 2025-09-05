@@ -75,6 +75,19 @@ public class NoteController {
         return ResponseEntity.noContent().build();
     }
     
+    @PostMapping("/{id}/copy")
+    public ResponseEntity<NoteResponse> copyNote(@PathVariable Long id) {
+        try {
+            log.info("Copying note with ID: {}", id);
+            NoteResponse copiedNote = noteService.copyNote(id);
+            log.info("Note copied successfully with new ID: {}", copiedNote.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(copiedNote);
+        } catch (Exception e) {
+            log.error("Error copying note with ID: {}", id, e);
+            throw e;
+        }
+    }
+    
     @GetMapping("/search")
     public ResponseEntity<List<NoteResponse>> searchNotes(@RequestParam String q) {
         try {

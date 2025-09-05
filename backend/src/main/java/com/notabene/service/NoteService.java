@@ -178,6 +178,36 @@ public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
         noteRepository.delete(note);
     }
 
+    @Transactional
+    public NoteResponse copyNote(Long id) {
+        User currentUser = authenticationService.getCurrentUser();
+        log.info("Copying note {} for user: {} (ID: {})", id, currentUser.getUsername(), currentUser.getId());
+        
+        // Get the original note with read permission
+        Optional<Note> noteOpt = noteRepository.findByIdWithReadPermission(id, currentUser.getId());
+        
+        if (noteOpt.isEmpty()) {
+            throw new NoteNotFoundException("Note not found with id: " + id + " for current user");
+        }
+        
+        Note originalNote = noteOpt.get();
+        
+        // Create a new note with the same content but as a new independent note
+        Note copiedNote = new Note(originalNote.getTitle() + " (Copia)", originalNote.getContent(), currentUser);
+        
+        // Copy tags from original note
+        copiedNote.getTags().addAll(originalNote.getTags());
+        
+        Note savedNote = noteRepository.save(copiedNote);
+        log.info("Note copied successfully with new ID: {}", savedNote.getId());
+        
+        // Create the first version for the copied note using the versioning service
+        noteVersioningService.updateNoteWithVersioning(
+            savedNote.getId(), savedNote.getTitle(), savedNote.getContent(), currentUser.getId());
+        
+        return convertToNoteResponse(savedNote, currentUser.getId());
+    }
+
     @Transactional(readOnly = true)
     public List<NoteResponse> searchNotes(String search) {
         try {

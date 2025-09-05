@@ -45,6 +45,12 @@ class NoteServiceTest {
     @Mock
     private UserRepository userRepository;
     
+    @Mock
+    private NoteVersioningService noteVersioningService;
+    
+    @Mock
+    private com.notabene.repository.NoteVersionRepository noteVersionRepository;
+    
     @InjectMocks
     private NoteService noteService;
     
@@ -637,5 +643,62 @@ class NoteServiceTest {
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findByIdWithReadPermission(noteId, testUser.getId());
         verify(noteRepository, never()).save(any(Note.class));
+    }
+
+    @Test
+    @DisplayName("Should copy note successfully with versioning")
+    void shouldCopyNoteSuccessfullyWithVersioning() {
+        // Given
+        Long originalNoteId = 1L;
+        Note originalNote = new Note("Original Title", "Original Content", testUser);
+        originalNote.setId(originalNoteId);
+        
+        Note copiedNote = new Note("Original Title (Copia)", "Original Content", testUser);
+        copiedNote.setId(2L);
+        
+        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        when(noteRepository.findByIdWithReadPermission(originalNoteId, testUser.getId()))
+                .thenReturn(Optional.of(originalNote));
+        when(noteRepository.save(any(Note.class))).thenReturn(copiedNote);
+        when(noteVersionRepository.countByNoteId(copiedNote.getId())).thenReturn(1L);
+        
+        // When
+        NoteResponse result = noteService.copyNote(originalNoteId);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals("Original Title (Copia)", result.getTitle());
+        assertEquals("Original Content", result.getContent());
+        assertTrue(result.getIsOwner());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findByIdWithReadPermission(originalNoteId, testUser.getId());
+        verify(noteRepository).save(any(Note.class));
+        verify(noteVersioningService).updateNoteWithVersioning(
+                copiedNote.getId(), copiedNote.getTitle(), copiedNote.getContent(), testUser.getId());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when copying non-existent note")
+    void shouldThrowExceptionWhenCopyingNonExistentNote() {
+        // Given
+        Long noteId = 999L;
+        
+        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        when(noteRepository.findByIdWithReadPermission(noteId, testUser.getId()))
+                .thenReturn(Optional.empty());
+        
+        // When & Then
+        NoteNotFoundException exception = assertThrows(
+                NoteNotFoundException.class,
+                () -> noteService.copyNote(noteId)
+        );
+        
+        assertEquals("Note not found with id: " + noteId + " for current user", exception.getMessage());
+        
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).findByIdWithReadPermission(noteId, testUser.getId());
+        verify(noteRepository, never()).save(any(Note.class));
+        verify(noteVersioningService, never()).updateNoteWithVersioning(any(), any(), any(), any());
     }
 }

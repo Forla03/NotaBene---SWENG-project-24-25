@@ -3,12 +3,16 @@ import NotesList from './NotesList';
 import CreateNote from './CreateNote';
 import EditNote from './EditNote';
 import { Note, notesApi, foldersApi } from '../../services/api';
+import { useModal } from '../../hooks/useModal';
 import FolderSidebar from '../Folders/FolderSidebar';
 import AddToFolderModal from '../Folders/AddToFolderModal';
+import { useModalContext } from '../Modal/ModalProvider';
 
 type View = 'list' | 'create' | 'edit';
 
 const NotesApp = () => {
+  const modal = useModalContext(); // Aggiunto modal context
+  const { showError, showSuccess } = useModal(); // Aggiunto useModal hook
   const [currentView, setCurrentView] = useState<View>('list');
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +95,25 @@ const NotesApp = () => {
       }
     } catch (err) {
       console.error('Error deleting note:', err);
-      alert('Errore nella cancellazione della nota');
+      showError('Errore', 'Errore nella cancellazione della nota');
+    }
+  };
+
+  const handleCopyNote = async (id: number) => {
+    try {
+      const response = await notesApi.copyNote(id);
+      const copiedNote = response.data;
+      
+      // Aggiungi la nota copiata alla lista
+      setNotes(prev => [copiedNote, ...prev]);
+      
+      // Se siamo in vista cartella, non aggiungere la copia alla cartella automaticamente
+      // L'utente potrà farlo manualmente se lo desidera
+      
+      showSuccess('Successo', 'Nota copiata con successo!');
+    } catch (err) {
+      console.error('Error copying note:', err);
+      showError('Errore', 'Errore nella copia della nota');
     }
   };
 
@@ -171,6 +193,7 @@ const NotesApp = () => {
           onEditNote={handleEditNote}
           notes={visibleNotes}
           onDeleteNote={handleDeleteNote}
+          onCopyNote={handleCopyNote}
           onNotesUpdated={handleNotesUpdated}
           // --- nuove props:
           onAddToFolder={openAddToFolder}

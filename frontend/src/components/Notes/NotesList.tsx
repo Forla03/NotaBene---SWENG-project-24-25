@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Note, notesApi, SearchNotesRequest, foldersApi } from '../../services/api';
+import { useModal } from '../../hooks/useModal';
 import NotePermissions from './NotePermissions';
 import NoteVersions from './NoteVersions';
 import SearchBar from './SearchBar';
@@ -11,6 +12,7 @@ interface NotesListProps {
   onEditNote: (note: Note) => void;
   notes: Note[];
   onDeleteNote: (id: number) => void;
+  onCopyNote: (id: number) => void;
   onNotesUpdated: () => void;
 
   // --- NUOVE props per cartelle:
@@ -20,9 +22,10 @@ interface NotesListProps {
 }
 
 const NotesList = ({
-  onCreateNote, onEditNote, notes, onDeleteNote, onNotesUpdated,
+  onCreateNote, onEditNote, notes, onDeleteNote, onCopyNote, onNotesUpdated,
   onAddToFolder, onRemoveFromFolder, selectedFolderId
 }: NotesListProps) => {
+  const { showDeleteConfirm, showConfirm, showError, showWarningConfirm } = useModal();
   const [selectedNoteForPermissions, setSelectedNoteForPermissions] = useState<Note | null>(null);
   const [selectedNoteForVersions, setSelectedNoteForVersions] = useState<Note | null>(null);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
@@ -31,22 +34,49 @@ const NotesList = ({
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Sei sicuro di voler eliminare questa nota?')) {
-      try { onDeleteNote(id); }
-      catch (err) { console.error('Error deleting note:', err); alert('Errore nell\'eliminazione della nota'); }
-    }
+    showDeleteConfirm(
+      'Elimina Nota', 
+      'Sei sicuro di voler eliminare questa nota? Questa azione non può essere annullata.',
+      async () => {
+        try { 
+          onDeleteNote(id); 
+        } catch (err) { 
+          console.error('Error deleting note:', err); 
+          showError('Errore', 'Errore nell\'eliminazione della nota'); 
+        }
+      }
+    );
+  };
+
+  const handleCopy = async (id: number) => {
+    showConfirm(
+      'Copia Nota', 
+      'Vuoi creare una copia di questa nota?',
+      async () => {
+        try { 
+          onCopyNote(id);
+        } catch (err) { 
+          console.error('Error copying note:', err); 
+          showError('Errore', 'Errore nella copia della nota'); 
+        }
+      }
+    );
   };
 
   const handleLeaveSharedNote = async (id: number) => {
-    if (window.confirm('Sei sicuro di voler rimuoverti da questa nota condivisa? Non la vedrai più nella tua lista.')) {
-      try {
-        await notesApi.leaveSharedNote(id);
-        onNotesUpdated(); // Ricarica la lista delle note
-      } catch (err) {
-        console.error('Error leaving shared note:', err);
-        alert('Errore nel lasciare la nota condivisa');
+    showWarningConfirm(
+      'Abbandona Nota Condivisa', 
+      'Sei sicuro di voler rimuoverti da questa nota condivisa? Non la vedrai più nella tua lista.',
+      async () => {
+        try {
+          await notesApi.leaveSharedNote(id);
+          onNotesUpdated(); // Ricarica la lista delle note
+        } catch (err) {
+          console.error('Error leaving shared note:', err);
+          showError('Errore', 'Errore nel lasciare la nota condivisa');
+        }
       }
-    }
+    );
   };
 
   const handleManagePermissions = (note: Note) => setSelectedNoteForPermissions(note);
@@ -161,6 +191,13 @@ const NotesList = ({
       {isOwnedBlock && note.canShare && (
         <button onClick={() => handleManagePermissions(note)} className="permissions-btn" title="Gestisci permessi">
           👥 Condividi
+        </button>
+      )}
+
+      {/* Copia nota (disponibile per tutti con accesso in lettura) */}
+      {note.id && (
+        <button onClick={() => handleCopy(note.id!)} className="copy-btn" title="Crea una copia di questa nota">
+          📄 Copia
         </button>
       )}
 
