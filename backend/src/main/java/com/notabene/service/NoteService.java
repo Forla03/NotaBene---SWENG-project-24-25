@@ -139,7 +139,7 @@ public class NoteService {
     }
     
     @Transactional
-public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
+    public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
     User currentUser = authenticationService.getCurrentUser();
 
     // verifica permessi di scrittura

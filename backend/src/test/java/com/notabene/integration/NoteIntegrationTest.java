@@ -1,41 +1,46 @@
 package com.notabene.integration;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import static org.hamcrest.Matchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notabene.config.TokenStore;
 import com.notabene.dto.AddPermissionRequest;
-import com.notabene.dto.RemovePermissionRequest;
 import com.notabene.dto.CreateNoteRequest;
+import com.notabene.dto.RemovePermissionRequest;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.entity.Note;
 import com.notabene.model.User;
 import com.notabene.repository.NoteRepository;
 import com.notabene.repository.UserRepository;
-import com.notabene.config.TokenStore;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import static org.hamcrest.Matchers.hasSize;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Transactional
+@Import(com.notabene.exception.GlobalExceptionHandler.class)
 @DisplayName("Note Integration Tests")
 class NoteIntegrationTest {
 
@@ -266,26 +271,27 @@ class NoteIntegrationTest {
     @Test
     @DisplayName("Should return permission flags correctly for writer")
     void shouldReturnPermissionFlagsForWriter() throws Exception {
-        // Crea una nota di test con l'altro utente come writer
+
         Note note = new Note();
         note.setTitle("Test Note");
         note.setContent("Test Content");
         note.setUser(testUser);
         note.setCreatorId(testUser.getId());
         note.setWriters(new ArrayList<>(List.of(otherUser.getId())));
+        note.setReaders(new ArrayList<>(List.of(otherUser.getId())));
         note = noteRepository.save(note);
 
-        // Verifica che i flag di permesso siano corretti per il writer
-        mockMvc.perform(get("/api/notes")
+        mockMvc.perform(get("/api/notes/{id}", note.getId())
                 .header("X-Auth-Token", otherAuthToken)
                 .header("Authorization", "Bearer " + otherAuthToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].isOwner").value(false))
-                .andExpect(jsonPath("$[0].canEdit").value(true))
-                .andExpect(jsonPath("$[0].canDelete").value(false))
-                .andExpect(jsonPath("$[0].canShare").value(false))
+                .andExpect(jsonPath("$.isOwner").value(false))
+                .andExpect(jsonPath("$.canEdit").value(true))
+                .andExpect(jsonPath("$.canDelete").value(false))
+                .andExpect(jsonPath("$.canShare").value(false))
                 .andDo(print());
-    }
+}
+
 
     @Test
     @DisplayName("Should return permission flags correctly for reader")
@@ -330,8 +336,8 @@ class NoteIntegrationTest {
                 .header("Authorization", "Bearer " + authToken)
                 .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.note_id").value(note.getId()))
-                .andExpect(jsonPath("$.creator_id").value(testUser.getId()))
+                .andExpect(jsonPath("$.noteId").value(note.getId()))
+                .andExpect(jsonPath("$.creatorId").value(testUser.getId()))
                 .andExpect(jsonPath("$.readers").isArray())
                 .andExpect(jsonPath("$.readers[0]").value(otherUser.getUsername()))
                 .andExpect(jsonPath("$.writers").isArray())
@@ -361,11 +367,10 @@ class NoteIntegrationTest {
         // Verifica che il permesso sia stato aggiunto
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
                 .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
+                .header("Authorization", "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.readers").isArray())
-                .andExpect(jsonPath("$.readers[1]").value(otherUser.getId()));
+                .andExpect(jsonPath("$.readers", hasItem(otherUser.getUsername())));
     }
 
     @Test
@@ -381,27 +386,29 @@ class NoteIntegrationTest {
         AddPermissionRequest request = new AddPermissionRequest(otherUser.getUsername());
 
         mockMvc.perform(post("/api/notes/" + note.getId() + "/permissions/writers")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .with(csrf()))
-                .andExpect(status().isOk());
-                
-        // Verifica che il permesso sia stato aggiunto
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request))
+            .with(csrf()))
+        .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.writers").isArray())
-                .andExpect(jsonPath("$.writers[1]").value(otherUser.getId()));
-    }
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.writers").isArray())
+        .andExpect(jsonPath("$.writers", hasItems(
+            testUser.getUsername(),
+            otherUser.getUsername()
+        )));
+
+   }
 
     @Test
     @DisplayName("Should remove reader permission from note")
     void shouldRemoveReaderPermission() throws Exception {
-        // Crea una nota con permessi
+
         Note note = new Note();
         note.setTitle("Test Note");
         note.setContent("Test Content");
@@ -413,28 +420,28 @@ class NoteIntegrationTest {
         RemovePermissionRequest request = new RemovePermissionRequest(otherUser.getUsername());
 
         mockMvc.perform(delete("/api/notes/" + note.getId() + "/permissions/readers")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .with(csrf()))
-                .andExpect(status().isOk());
-                
-        // Verifica che il permesso sia stato rimosso
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request))
+            .with(csrf()))
+        .andExpect(status().isOk());
+
+
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.readers").isArray())
-                .andExpect(jsonPath("$.readers.length()").value(1))
-                .andExpect(jsonPath("$.readers[0]").value(testUser.getId()));
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.readers").isArray())
+        .andExpect(jsonPath("$.readers", hasSize(1)))
+        .andExpect(jsonPath("$.readers", contains(testUser.getUsername())));
+
     }
 
     @Test
     @DisplayName("Should remove writer permission from note")
     void shouldRemoveWriterPermission() throws Exception {
-        // Crea una nota con permessi
+
         Note note = new Note();
         note.setTitle("Test Note");
         note.setContent("Test Content");
@@ -446,28 +453,26 @@ class NoteIntegrationTest {
         RemovePermissionRequest request = new RemovePermissionRequest(otherUser.getUsername());
 
         mockMvc.perform(delete("/api/notes/" + note.getId() + "/permissions/writers")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .with(csrf()))
-                .andExpect(status().isOk());
-                
-        // Verifica che il permesso sia stato rimosso
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request))
+            .with(csrf()))
+        .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.writers").isArray())
-                .andExpect(jsonPath("$.writers.length()").value(1))
-                .andExpect(jsonPath("$.writers[0]").value(testUser.getId()));
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.writers").isArray())
+        .andExpect(jsonPath("$.writers", hasSize(1)))
+        .andExpect(jsonPath("$.writers", contains(testUser.getUsername())));
     }
 
     @Test
     @DisplayName("Should add reader permission using backward compatibility endpoint")
     void shouldAddReaderPermissionBackwardCompatibility() throws Exception {
-        // Crea una nota
+
         Note note = new Note();
         note.setTitle("Test Note");
         note.setContent("Test Content");
@@ -478,21 +483,19 @@ class NoteIntegrationTest {
         AddPermissionRequest request = new AddPermissionRequest(otherUser.getUsername());
 
         mockMvc.perform(post("/api/notes/" + note.getId() + "/readers")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .with(csrf()))
-                .andExpect(status().isOk());
-                
-        // Verifica che il permesso sia stato aggiunto
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request))
+            .with(csrf()))
+        .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.readers").isArray())
-                .andExpect(jsonPath("$.readers[1]").value(otherUser.getId()));
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.readers").isArray())
+        .andExpect(jsonPath("$.readers", hasItem(otherUser.getUsername())));
     }
 
     @Test
@@ -775,7 +778,7 @@ class NoteIntegrationTest {
     @Test
     @DisplayName("Should remove user from both readers and writers arrays when leaving note")
     void shouldRemoveUserFromBothArraysWhenLeavingNote() throws Exception {
-        // Crea una nota condivisa con otherUser come reader e writer
+
         Note note = new Note();
         note.setTitle("Multi-permission Note");
         note.setContent("Content");
@@ -785,22 +788,21 @@ class NoteIntegrationTest {
         note.setWriters(new ArrayList<>(List.of(testUser.getId(), otherUser.getId())));
         note = noteRepository.save(note);
 
-        // otherUser si rimuove dalla nota
         mockMvc.perform(delete("/api/notes/" + note.getId() + "/leave")
-                .header("X-Auth-Token", otherAuthToken)
-                .header("Authorization", "Bearer " + otherAuthToken)
-                .with(csrf()))
-                .andExpect(status().isOk());
+            .header("X-Auth-Token", otherAuthToken)
+            .header("Authorization", "Bearer " + otherAuthToken)
+            .with(csrf())) // write -> ok
+        .andExpect(status().isOk());
 
-        // Verifica che otherUser sia stato rimosso da entrambi gli array
         mockMvc.perform(get("/api/notes/" + note.getId() + "/permissions")
-                .header("X-Auth-Token", authToken)
-                .header("Authorization", "Bearer " + authToken)
-                .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.readers", hasSize(1)))
-                .andExpect(jsonPath("$.readers[0]").value(testUser.getId()))
-                .andExpect(jsonPath("$.writers", hasSize(1)))
-                .andExpect(jsonPath("$.writers[0]").value(testUser.getId()));
+            .header("X-Auth-Token", authToken)
+            .header("Authorization", "Bearer " + authToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.readers").isArray())
+        .andExpect(jsonPath("$.readers", hasSize(1)))
+        .andExpect(jsonPath("$.readers", contains(testUser.getUsername())))
+        .andExpect(jsonPath("$.writers").isArray())
+        .andExpect(jsonPath("$.writers", hasSize(1)))
+        .andExpect(jsonPath("$.writers", contains(testUser.getUsername())));
     }
 }
