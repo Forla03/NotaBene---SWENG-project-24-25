@@ -1,6 +1,12 @@
 package com.notabene.exception;
 
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -9,19 +15,20 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.core.convert.ConversionFailedException;
+import org.springframework.beans.TypeMismatchException;
+import java.time.format.DateTimeParseException;
+import org.springframework.web.context.request.WebRequest;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = com.notabene.controller.NoteController.class)
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoteNotFoundException.class)
-    @Order(1)
     public ResponseEntity<ErrorResponse> handleNoteNotFoundException(NoteNotFoundException ex) {
         log.error("Note not found: {}", ex.getMessage(), ex);
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value());
@@ -29,7 +36,6 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(UnauthorizedNoteAccessException.class)
-    @Order(1)
     public ResponseEntity<ErrorResponse> handleUnauthorizedNoteAccessException(UnauthorizedNoteAccessException ex) {
         log.error("Unauthorized note access: {}", ex.getMessage(), ex);
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), HttpStatus.FORBIDDEN.value());
@@ -37,7 +43,6 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @Order(1)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         log.error("Validation error: {}", ex.getMessage(), ex);
         List<String> errors = ex.getBindingResult()
@@ -55,7 +60,6 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(IllegalArgumentException.class)
-    @Order(1)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         log.error("Invalid argument: {}", ex.getMessage(), ex);
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value());
@@ -63,7 +67,6 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(DataAccessException.class)
-    @Order(2)
     public ResponseEntity<Map<String, Object>> handleDataAccessException(DataAccessException ex) {
         log.error("Database error occurred: ", ex);
         
@@ -80,7 +83,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({Exception.class})
-    @Order(10)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {        
         log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
         
@@ -94,5 +96,37 @@ public class GlobalExceptionHandler {
         errorDetails.put("debugType", ex.getClass().getSimpleName());
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorDetails);
+    }
+
+    @ExceptionHandler({
+    MethodArgumentTypeMismatchException.class,
+    TypeMismatchException.class,
+    ConversionFailedException.class,
+    DateTimeParseException.class
+    })
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(Exception ex, WebRequest request) {
+
+        String message = "Invalid request parameter";
+
+        if (ex instanceof MethodArgumentTypeMismatchException matme) {
+            String param = matme.getName();
+            String required = matme.getRequiredType() != null
+                    ? matme.getRequiredType().getSimpleName()
+                    : "unknown";
+            String value = String.valueOf(matme.getValue());
+            message = "Invalid value for parameter '%s': expected %s, got '%s'"
+                    .formatted(param, required, value);
+        } else if (ex.getCause() instanceof DateTimeParseException dtpe) {
+            message = "Invalid date/time format: " + dtpe.getParsedString();
+        } else if (ex instanceof DateTimeParseException dtpe) {
+            message = "Invalid date/time format: " + dtpe.getParsedString();
+        }
+
+        ErrorResponse body = new ErrorResponse(
+                "Validation failed",
+                HttpStatus.BAD_REQUEST.value(),
+                List.of(message)
+        );
+        return ResponseEntity.badRequest().body(body);
     }
 }

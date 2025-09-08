@@ -20,9 +20,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,7 +37,6 @@ import com.notabene.dto.NoteResponse;
 import com.notabene.dto.UpdateNoteRequest;
 import com.notabene.exception.NoteNotFoundException;
 import com.notabene.service.NoteService;
-import org.springframework.context.annotation.Import;
 
 @WebMvcTest(
     controllers = {NoteController.class},
@@ -47,15 +46,14 @@ import org.springframework.context.annotation.Import;
             com.notabene.config.TokenAuthenticationFilter.class,
             com.notabene.config.TokenStore.class
         }
-    )
+    ),excludeAutoConfiguration = {
+    org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
+  }
 )
 @Import(com.notabene.exception.GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
-@TestPropertySource(properties = {
-    "spring.security.enabled=false",
-    "management.security.enabled=false"
-})
 @DisplayName("Note Controller Tests")
 class NoteControllerTest {
     

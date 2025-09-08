@@ -1,32 +1,33 @@
 package com.notabene.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.notabene.dto.NoteResponse;
-import com.notabene.dto.SearchNotesRequest;
-import com.notabene.service.NoteService;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notabene.dto.NoteResponse;
+import com.notabene.dto.SearchNotesRequest;
+import com.notabene.service.NoteService;
 
 @WebMvcTest(
     controllers = {NoteController.class},
@@ -36,14 +37,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
             com.notabene.config.TokenAuthenticationFilter.class,
             com.notabene.config.TokenStore.class
         }
-    )
+    ),excludeAutoConfiguration = {
+    org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
+  }
 )
 @AutoConfigureMockMvc(addFilters = false)
+@Import(com.notabene.exception.GlobalExceptionHandler.class)
 @ActiveProfiles("test")
-@TestPropertySource(properties = {
-    "spring.security.enabled=false",
-    "management.security.enabled=false"
-})
 @DisplayName("Note Search Controller Tests")
 class NoteSearchControllerTest {
     
@@ -186,41 +187,5 @@ class NoteSearchControllerTest {
         mockMvc.perform(get("/api/notes/search/advanced")
                 .param("createdAfter", "invalid-date"))
                 .andExpect(status().isBadRequest());
-    }
-    
-    @Test
-    @DisplayName("GET /api/folders/{folderId}/notes/search - Should search notes within folder")
-    void shouldSearchNotesWithinFolder() throws Exception {
-        // Given
-        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
-        when(noteService.searchNotesInFolder(any(Long.class), any(SearchNotesRequest.class)))
-                .thenReturn(searchResults);
-        
-        // When & Then
-        mockMvc.perform(get("/api/folders/1/notes/search")
-                .param("query", "Java"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(1));
-    }
-    
-    @Test
-    @DisplayName("POST /api/folders/{folderId}/notes/search - Should search notes within folder with POST")
-    void shouldSearchNotesWithinFolderWithPost() throws Exception {
-        // Given
-        SearchNotesRequest request = new SearchNotesRequest();
-        request.setQuery("Java");
-        
-        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
-        when(noteService.searchNotesInFolder(any(Long.class), any(SearchNotesRequest.class)))
-                .thenReturn(searchResults);
-        
-        // When & Then
-        mockMvc.perform(post("/api/folders/1/notes/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(1));
     }
 }

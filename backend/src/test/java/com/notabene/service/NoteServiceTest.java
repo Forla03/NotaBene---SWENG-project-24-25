@@ -9,6 +9,8 @@ import com.notabene.exception.NoteNotFoundException;
 import com.notabene.model.User;
 import com.notabene.repository.NoteRepository;
 import com.notabene.repository.UserRepository;
+import com.notabene.repository.TagRepository;
+import com.notabene.repository.NoteVersionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.ArgumentMatchers.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -28,9 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Note Service Tests")
@@ -47,6 +48,15 @@ class NoteServiceTest {
     
     @InjectMocks
     private NoteService noteService;
+
+    @Mock
+    private TagRepository tagRepository;
+
+    @Mock
+    private NoteVersionRepository noteVersionRepository;
+
+    @Mock
+    private NoteVersioningService noteVersioningService;
     
     private Note sampleNote;
     private User testUser;
@@ -77,7 +87,38 @@ class NoteServiceTest {
         
         // Mock current user for all tests (lenient to avoid unnecessary stubbing issues)
         lenient().when(authenticationService.getCurrentUser()).thenReturn(testUser);
-    }
+
+        lenient().when(noteVersionRepository.countByNoteId(anyLong())).thenReturn(0L);
+
+        // Evita NPE nel mapping readers/writers (Optional::isPresent su null)
+        lenient().when(userRepository.findById(anyLong()))
+            .thenAnswer(inv -> {
+                Long id = inv.getArgument(0, Long.class);
+                User u = new User();
+                u.setId(id);
+                u.setUsername(id.equals(testUser.getId()) ? testUser.getUsername() : ("user" + id));
+                return java.util.Optional.of(u);
+            });
+
+        // Se i test coprono create/update, il service di versioning deve restituire una Nota valida
+        lenient().when(noteVersioningService.updateNoteWithVersioning(anyLong(), anyString(), anyString(), anyLong()))
+            .thenAnswer(inv -> {
+                Long id = inv.getArgument(0, Long.class);
+                String title = inv.getArgument(1, String.class);
+                String content = inv.getArgument(2, String.class);
+
+                Note n = new Note(title, content, testUser);
+                n.setId(id);
+                n.setCreatedAt(sampleNote.getCreatedAt());
+                n.setUpdatedAt(java.time.LocalDateTime.now());
+                // Mantieni permessi/relazioni utili ai test
+                n.setCreatorId(sampleNote.getCreatorId());
+                if (sampleNote.getReaders() != null) n.getReaders().addAll(sampleNote.getReaders());
+                if (sampleNote.getWriters() != null) n.getWriters().addAll(sampleNote.getWriters());
+                if (sampleNote.getTags() != null) n.getTags().addAll(sampleNote.getTags());
+                return n;
+            });
+        }
     
     @Test
     @DisplayName("Should create note successfully with current user")
@@ -169,66 +210,115 @@ class NoteServiceTest {
     @Test
     @DisplayName("Should update note for current user only")
     void shouldUpdateNoteSuccessfully() {
+
+        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId()))
+                .thenReturn(Optional.of(sampleNote));
+
         Note updatedNote = new Note("Updated Title", "Updated Content", testUser);
         updatedNote.setId(1L);
         updatedNote.setCreatedAt(sampleNote.getCreatedAt());
         updatedNote.setUpdatedAt(LocalDateTime.now());
-        // Set permissions for updated note
         updatedNote.setCreatorId(testUser.getId());
         updatedNote.addReader(testUser.getId());
         updatedNote.addWriter(testUser.getId());
-        
-        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
-        when(noteRepository.save(any(Note.class))).thenReturn(updatedNote);
-        
+
+        when(noteVersioningService.updateNoteWithVersioning(
+                1L, "Updated Title", "Updated Content", testUser.getId()))
+            .thenReturn(updatedNote);
+
+        when(noteVersionRepository.countByNoteId(1L)).thenReturn(1L);
+        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+
         NoteResponse result = noteService.updateNote(1L, validUpdateRequest);
-        
+
         assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("Updated Title", result.getTitle());
         assertEquals("Updated Content", result.getContent());
-        
+
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
-        verify(noteRepository).save(any(Note.class));
+        verify(noteVersioningService).updateNoteWithVersioning(
+                1L, "Updated Title", "Updated Content", testUser.getId());
     }
+
     
     @Test
     @DisplayName("Should update note partially for current user")
     void shouldUpdateNotePartially() {
+
+        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId()))
+            .thenReturn(Optional.of(sampleNote));
+
+        when(noteVersionRepository.countByNoteId(1L)).thenReturn(1L);
+        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+
         UpdateNoteRequest partialUpdate = new UpdateNoteRequest(null, "Updated Content Only");
-        
-        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
-        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
-        
+
+        Note returned = new Note(sampleNote.getTitle(), "Updated Content Only", testUser);
+        returned.setId(1L);
+        returned.setCreatedAt(sampleNote.getCreatedAt());
+        returned.setUpdatedAt(LocalDateTime.now());
+        returned.setCreatorId(testUser.getId());
+        returned.getReaders().addAll(sampleNote.getReaders());
+        returned.getWriters().addAll(sampleNote.getWriters());
+        returned.getTags().addAll(sampleNote.getTags());
+
+        when(noteVersioningService.updateNoteWithVersioning(
+            eq(1L),
+            eq(sampleNote.getTitle()),
+            eq("Updated Content Only"),
+            eq(testUser.getId()))
+        ).thenReturn(returned);
+
         NoteResponse result = noteService.updateNote(1L, partialUpdate);
-        
+
         assertNotNull(result);
-        assertEquals("Test Note", result.getTitle()); // Should remain unchanged
-        assertEquals("Updated Content Only", result.getContent()); // Should be updated
-        
+        assertEquals(1L, result.getId());
+        assertEquals("Test Note", result.getTitle());
+        assertEquals("Updated Content Only", result.getContent());  
+
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
-        verify(noteRepository).save(any(Note.class));
+        verify(noteVersioningService).updateNoteWithVersioning(
+            1L, sampleNote.getTitle(), "Updated Content Only", testUser.getId());
+
+        verify(noteRepository, never()).save(any(Note.class));
     }
+
     
     @Test
     @DisplayName("Should ignore blank strings in update")
     void shouldIgnoreBlankStringsInUpdate() {
+
+        when(authenticationService.getCurrentUser()).thenReturn(testUser);
+        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId()))
+            .thenReturn(Optional.of(sampleNote));
+
+        lenient().when(noteVersionRepository.countByNoteId(1L)).thenReturn(0L);
+        lenient().when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+
         UpdateNoteRequest updateWithBlanks = new UpdateNoteRequest("", "   ");
-        
-        when(noteRepository.findByIdWithWritePermission(1L, testUser.getId())).thenReturn(Optional.of(sampleNote));
-        when(noteRepository.save(any(Note.class))).thenReturn(sampleNote);
-        
+
+        lenient().when(noteVersioningService.updateNoteWithVersioning(
+            eq(1L),
+            eq(sampleNote.getTitle()),
+            eq(sampleNote.getContent()),
+            eq(testUser.getId())
+        )).thenReturn(sampleNote);
+
         NoteResponse result = noteService.updateNote(1L, updateWithBlanks);
-        
+
         assertNotNull(result);
-        assertEquals("Test Note", result.getTitle()); // Should remain unchanged
-        assertEquals("Test Content", result.getContent()); // Should remain unchanged
-        
+        assertEquals("Test Note", result.getTitle());
+        assertEquals("Test Content", result.getContent());
+
         verify(authenticationService).getCurrentUser();
         verify(noteRepository).findByIdWithWritePermission(1L, testUser.getId());
-        verify(noteRepository).save(any(Note.class));
+        verify(noteRepository, never()).save(any(Note.class));
+
     }
     
     @Test
