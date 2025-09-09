@@ -1,5 +1,6 @@
 package com.notabene.integration;
 
+import com.notabene.config.TestTokenConfig;
 import com.notabene.entity.Note;
 import com.notabene.model.User;
 import com.notabene.repository.NoteRepository;
@@ -10,25 +11,25 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureWebMvc
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Transactional
+@Import({TestTokenConfig.class})
 @DisplayName("Note Versioning Integration Tests")
 class NoteVersioningIntegrationTest {
 
@@ -47,12 +48,16 @@ class NoteVersioningIntegrationTest {
     @Autowired
     private NoteVersioningService noteVersioningService;
 
-    private User testUser;
     private Note testNote;
+    private User testUser;
     private String authToken;
 
     @BeforeEach
     void setUp() {
+        // Clean up
+        noteRepository.deleteAll();
+        userRepository.deleteAll();
+
         // Create test user
         testUser = new User();
         testUser.setUsername("testuser");
@@ -60,17 +65,20 @@ class NoteVersioningIntegrationTest {
         testUser.setPassword("password");
         testUser = userRepository.save(testUser);
 
-        // Create test note
-        testNote = new Note("Original Title", "Original Content", testUser);
-        testNote = noteRepository.save(testNote);
-
-        // Mock authentication (simplified for testing)
         authToken = "test-token-" + testUser.getId();
+
+        // Create test note
+        testNote = new Note();
+        testNote.setTitle("Original Title");
+        testNote.setContent("Original Content");
+        testNote.setCreatorId(testUser.getId());
+        testNote.setUser(testUser);
+        testNote = noteRepository.save(testNote);
     }
 
     @Test
-    @DisplayName("Should create version when updating note via API")
-    void shouldCreateVersionWhenUpdatingNoteViaAPI() throws Exception {
+    @DisplayName("Should create version when note is updated")
+    void shouldCreateVersionWhenNoteIsUpdated() throws Exception {
         // Given
         Map<String, String> updateRequest = new HashMap<>();
         updateRequest.put("title", "Updated Title");
@@ -87,9 +95,10 @@ class NoteVersioningIntegrationTest {
 
         // Then
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(1, versions.size());
-        assertEquals("Original Title", versions.get(0).getTitle());
-        assertEquals("Original Content", versions.get(0).getContent());
+        assertEquals(2, versions.size()); // Current + 1 stored version
+        assertEquals("Updated Title", versions.get(0).getTitle()); // Current version first
+        assertEquals("Original Title", versions.get(1).getTitle()); // Stored version
+        assertEquals("Original Content", versions.get(1).getContent());
     }
 
     @Test
@@ -105,9 +114,10 @@ class NoteVersioningIntegrationTest {
         mockMvc.perform(get("/api/notes/{id}/versions", testNote.getId())
                 .header("X-Auth-Token", authToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].title").value("Version 1")) // Most recent first
-                .andExpect(jsonPath("$[1].title").value("Original Title"));
+                .andExpect(jsonPath("$", hasSize(3))) // Current + 2 stored versions
+                .andExpect(jsonPath("$[0].title").value("Version 2")) // Most recent first (current)
+                .andExpect(jsonPath("$[1].title").value("Version 1")) // Previous version
+                .andExpect(jsonPath("$[2].title").value("Original Title")); // Original version
     }
 
     @Test
@@ -118,11 +128,11 @@ class NoteVersioningIntegrationTest {
             testNote.getId(), "Modified Title", "Modified Content", testUser.getId());
         
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        var originalVersion = versions.get(0); // Should be the original
+        var storedVersion = versions.get(1); // Get the first stored version (version 1)
 
         // When
-        mockMvc.perform(post("/api/notes/{id}/restore/{versionNumber}", 
-                testNote.getId(), originalVersion.getVersionNumber())
+        mockMvc.perform(post("/api/notes/{id}/versions/{versionNumber}/restore", 
+                testNote.getId(), storedVersion.getVersionNumber())
                 .header("X-Auth-Token", authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Original Title"))
@@ -130,7 +140,7 @@ class NoteVersioningIntegrationTest {
 
         // Then - verify restoration created a new version
         var updatedVersions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(2, updatedVersions.size()); // Original backup + restoration backup
+        assertEquals(3, updatedVersions.size()); // Current + original backup + restoration backup
     }
 
     @Test
@@ -148,10 +158,9 @@ class NoteVersioningIntegrationTest {
                 .param("newVersion", "2")
                 .header("X-Auth-Token", authToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hasTitleChanged").value(true))
-                .andExpect(jsonPath("$.hasContentChanged").value(true))
-                .andExpect(jsonPath("$.oldVersion.title").value("Original Title"))
-                .andExpect(jsonPath("$.newVersion.title").value("Version 1"));
+                .andExpect(jsonPath("$.hasChanges").value(true))
+                .andExpect(jsonPath("$.leftVersion.title").value("Original Title"))
+                .andExpect(jsonPath("$.rightVersion.title").value("Version 1"));
     }
 
     @Test
@@ -171,7 +180,8 @@ class NoteVersioningIntegrationTest {
 
         // Then
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(0, versions.size()); // No version should be created
+        assertEquals(1, versions.size()); // Only current version, no stored versions
+        assertEquals("Original Title", versions.get(0).getTitle());
     }
 
     @Test
@@ -186,8 +196,8 @@ class NoteVersioningIntegrationTest {
         // When
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
 
-        // Then - should not exceed maximum (typically 10)
-        assertTrue(versions.size() <= 10);
+        // Then - should not exceed maximum (10 stored + 1 current = 11 total)
+        assertTrue(versions.size() <= 11);
     }
 
     @Test
@@ -209,11 +219,11 @@ class NoteVersioningIntegrationTest {
                 .header("X-Auth-Token", "test-token-" + otherUser.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound());
 
         // Then
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(0, versions.size());
+        assertEquals(1, versions.size()); // Only current version, no additional versions created
     }
 
     @Test
@@ -243,8 +253,8 @@ class NoteVersioningIntegrationTest {
 
         // Then
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(1, versions.size());
-        assertEquals(collaborator.getId(), versions.get(0).getCreatedBy());
+        assertEquals(2, versions.size()); // Current + 1 stored version
+        assertEquals(collaborator.getId(), versions.get(1).getCreatedBy()); // Check stored version
     }
 
     @Test
@@ -276,6 +286,6 @@ class NoteVersioningIntegrationTest {
 
         // Then
         var versions = noteVersioningService.getVersionHistory(testNote.getId());
-        assertEquals(2, versions.size());
+        assertEquals(3, versions.size()); // Current + 2 stored versions
     }
 }

@@ -46,11 +46,7 @@ class NoteServiceTest {
     @Mock
     private UserRepository userRepository;
     
-    @Mock
-    private NoteVersioningService noteVersioningService;
-    
-    @Mock
-    private com.notabene.repository.NoteVersionRepository noteVersionRepository;
+
     
     @InjectMocks
     private NoteService noteService;

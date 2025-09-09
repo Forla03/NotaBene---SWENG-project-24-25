@@ -142,10 +142,9 @@ public class NoteService {
     public NoteResponse updateNote(Long id, UpdateNoteRequest request) {
     User currentUser = authenticationService.getCurrentUser();
 
-    // verifica permessi di scrittura
+    // Check if note exists and user has write permission
     Note note = noteRepository.findByIdWithWritePermission(id, currentUser.getId())
-        .orElseThrow(() -> new NoteNotFoundException(
-            "Note not found with id: " + id + " for current user or user has no write permission"));
+        .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id + " for current user or user has no write permission"));
 
     // Usa il servizio di versioning per aggiornare la nota (crea automaticamente la versione)
     String newTitle = request.getTitle() != null && !request.getTitle().trim().isEmpty() 
