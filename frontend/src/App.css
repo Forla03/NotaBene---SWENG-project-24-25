@@ -11,6 +11,12 @@ body {
 .App {
   min-height: 100vh;
   background-color: #f7f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.App > div:not(.app-header) {
+  flex: 1;
 }
 
 * {

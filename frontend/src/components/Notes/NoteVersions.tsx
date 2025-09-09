@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NoteVersion, Note, EnhancedVersionComparisonDTO } from '../../services/api';
 import { getVersionHistory, getSpecificVersion, restoreToVersion, compareVersionsEnhanced } from '../../services/api';
+import { useModal } from '../../hooks/useModal';
 import EnhancedVersionComparison from './EnhancedVersionComparison';
 import './NoteVersions.css';
 
@@ -19,6 +20,7 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
   onClose,
   onNoteUpdated
 }) => {
+  const { showInfo, showWarningConfirm, showConfirm } = useModal();
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<NoteVersion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,19 +74,22 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
     // Verifica se stiamo tentando di ripristinare la versione corrente
     const currentVersionNumber = getCurrentVersionNumber();
     if (versionNumber === currentVersionNumber) {
-      alert(`⚠️ La versione ${versionNumber} è già quella corrente. Nessuna operazione necessaria.`);
+      showInfo(
+        'Versione Corrente', 
+        `La versione ${versionNumber} è già quella corrente. Nessuna operazione necessaria.`
+      );
       return;
     }
 
-    if (!window.confirm(`Vuoi switchare alla versione ${versionNumber}? Questo cambierà solo quale versione è attiva, senza creare nuove versioni.`)) {
-      return;
-    }
-
-    try {
-      setIsRestoring(true);
-      setError(null);
-      
-      console.log('🔄 Switching to version', versionNumber, 'for note', noteId);
+    showConfirm(
+      'Switch Versione',
+      `Vuoi switchare alla versione ${versionNumber}? Questo cambierà solo quale versione è attiva, senza creare nuove versioni.`,
+      async () => {
+        try {
+          setIsRestoring(true);
+          setError(null);
+          
+          console.log('🔄 Switching to version', versionNumber, 'for note', noteId);
       
       const restoredNote = await restoreToVersion(noteId, versionNumber);
       
@@ -101,7 +106,7 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
       await loadVersionHistory();
       
       // Mostra messaggio di successo
-      alert(`✅ Ora stai visualizzando la versione ${versionNumber}! L'elenco delle versioni rimane invariato.`);
+      showInfo('Successo', `Ora stai visualizzando la versione ${versionNumber}! L'elenco delle versioni rimane invariato.`);
       
       // Chiudi automaticamente la modale per mostrare immediatamente il risultato
       console.log('❌ Closing modal...');
@@ -113,12 +118,14 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
     } finally {
       setIsRestoring(false);
     }
+      }
+    );
   };
 
   const handleCompare = async (versionNumber: number) => {
     if (compareWithVersion === null) {
       setCompareWithVersion(versionNumber);
-      alert(`📋 Seleziona un'altra versione per confrontare con la v${versionNumber}`);
+      showInfo('Selezione Confronto', `Seleziona un'altra versione per confrontare con la v${versionNumber}`);
       return;
     }
 

@@ -179,6 +179,7 @@ export const notesApi = {
   updateNote: (id: number, body: UpdateNoteRequest) =>
     api.put<Note>(`/notes/${id}`, body),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
+  copyNote: (id: number) => api.post<Note>(`/notes/${id}/copy`),
   
   // Cerca note - metodi semplici per compatibilità
   searchNotes: (query: string) => api.get<Note[]>(`/notes/search?q=${encodeURIComponent(query)}`),

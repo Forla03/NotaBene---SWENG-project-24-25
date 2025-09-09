@@ -3,6 +3,8 @@ import HomePage from './components/Home/HomePage';
 import NotesApp from './components/Notes/NotesApp';
 import Register from './components/Register/Register';
 import Login from './components/Login/Login';
+import Header from './components/Header/Header';
+import ModalProvider from './components/Modal/ModalProvider';
 import { getAuthToken, clearAuthToken } from './services/api';
 import './App.css';
 
@@ -11,6 +13,7 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshHomeTimestamp, setRefreshHomeTimestamp] = useState(0); // Per forzare refresh delle preview
 
   // ✅ Inizializza stato da localStorage al caricamento
   useEffect(() => {
@@ -80,11 +83,11 @@ const App = () => {
   };
 
   const navigateTo = (page: 'home' | 'register' | 'notes' | 'login') => {
-    setPage(page);
-    // Se provo ad andare alla home ma sono loggato, vai alle note
-    if (page === 'home' && isLoggedIn) {
-      setPage('notes');
+    // Se vengo dalle note alla home, aggiorna le preview
+    if (page === 'home') {
+      setRefreshHomeTimestamp(Date.now());
     }
+    setPage(page);
   };
 
   const handleSuccessfulRegistration = (newUsername: string) => {
@@ -107,35 +110,46 @@ const App = () => {
   }
 
   return (
-    <div className="App">
-      {page === 'home' && (
-        <HomePage 
-          goToNotes={() => setPage('notes')}
-          onLogout={handleLogout}
+    <ModalProvider>
+      <div className="App">
+        <Header 
           isLoggedIn={isLoggedIn}
           username={username}
-          onLoginClick={handleLoginClick}
-          onRegisterClick={handleRegister}
+          currentPage={page}
+          onNavigate={navigateTo}
+          onLogout={handleLogout}
         />
-      )}
+        
+        {page === 'home' && (
+          <HomePage 
+            goToNotes={() => setPage('notes')}
+            onLogout={handleLogout}
+            isLoggedIn={isLoggedIn}
+            username={username}
+            onLoginClick={handleLoginClick}
+            onRegisterClick={handleRegister}
+            refreshTimestamp={refreshHomeTimestamp}
+          />
+        )}
 
-      {page === 'login' && (
-        <Login 
-          onLoginSuccess={handleLoginSuccess} 
-          onCancel={() => setPage('home')} 
-        />
-      )}
+        {page === 'login' && (
+          <Login 
+            onLoginSuccess={handleLoginSuccess} 
+            onCancel={() => setPage('home')} 
+          />
+        )}
 
-      {page === 'notes' && isLoggedIn && <NotesApp />}
-      
-      {page === 'register' && (
-        <Register 
-          navigateTo={navigateTo}
-          onBack={() => navigateTo('home')}
-          onSuccessfulRegistration={handleSuccessfulRegistration}
-        />
-      )}
-    </div>
+        {page === 'notes' && isLoggedIn && <NotesApp />}
+        
+        {page === 'register' && (
+          <Register 
+            navigateTo={navigateTo}
+            onBack={() => navigateTo('home')}
+            onSuccessfulRegistration={handleSuccessfulRegistration}
+          />
+        )}
+      </div>
+    </ModalProvider>
   );
 };
 
