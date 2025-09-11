@@ -787,4 +787,179 @@ class NoteServiceTest {
         verify(noteRepository, never()).save(any(Note.class));
         verify(noteVersioningService, never()).updateNoteWithVersioning(any(), any(), any(), any());
     }
+
+    // ========================= ADVANCED SEARCH TESTS =========================
+
+    @Test
+    @DisplayName("Should search notes with advanced criteria successfully")
+    void shouldSearchNotesWithAdvancedCriteriaSuccessfully() throws Exception {
+        // Given
+        com.notabene.dto.SearchNotesRequest request = new com.notabene.dto.SearchNotesRequest();
+        request.setQuery("Java");
+        request.setAuthor("testuser");
+
+        List<Note> mockNotes = Arrays.asList(sampleNote);
+        when(noteRepository.searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("Java"),
+                eq("testuser"),
+                any(), any(), any(), any(), any()
+        )).thenReturn(mockNotes);
+
+        // When
+        List<com.notabene.dto.NoteResponse> result = noteService.searchNotesAdvanced(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(sampleNote.getId(), result.get(0).getId());
+        assertEquals(sampleNote.getTitle(), result.get(0).getTitle());
+
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("Java"),
+                eq("testuser"),
+                any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    @DisplayName("Should search notes with minimal criteria")
+    void shouldSearchNotesWithMinimalCriteria() throws Exception {
+        // Given
+        com.notabene.dto.SearchNotesRequest request = new com.notabene.dto.SearchNotesRequest();
+        request.setQuery("test");
+
+        List<Note> mockNotes = Arrays.asList(sampleNote);
+        when(noteRepository.searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("test"),
+                eq(null),
+                any(), any(), any(), any(), any()
+        )).thenReturn(mockNotes);
+
+        // When
+        List<com.notabene.dto.NoteResponse> result = noteService.searchNotesAdvanced(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("test"),
+                eq(null),
+                any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    @DisplayName("Should return empty list when advanced search finds no results")
+    void shouldReturnEmptyListWhenAdvancedSearchFindsNoResults() throws Exception {
+        // Given
+        com.notabene.dto.SearchNotesRequest request = new com.notabene.dto.SearchNotesRequest();
+        request.setQuery("nonexistent");
+
+        when(noteRepository.searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("nonexistent"),
+                any(), any(), any(), any(), any(), any()
+        )).thenReturn(new ArrayList<>());
+
+        // When
+        List<com.notabene.dto.NoteResponse> result = noteService.searchNotesAdvanced(request);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+
+        verify(authenticationService).getCurrentUser();
+        verify(noteRepository).searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("nonexistent"),
+                any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    @DisplayName("Should search notes in folder successfully")
+    void shouldSearchNotesInFolderSuccessfully() throws Exception {
+        // Given
+        Long folderId = 1L;
+        com.notabene.dto.SearchNotesRequest request = new com.notabene.dto.SearchNotesRequest();
+        request.setQuery("Java");
+
+        List<Note> mockNotes = Arrays.asList(sampleNote);
+        when(noteRepository.searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("Java"),
+                any(), any(), any(), any(), any(), eq(folderId)
+        )).thenReturn(mockNotes);
+
+        // When
+        List<com.notabene.dto.NoteResponse> result = noteService.searchNotesInFolder(folderId, request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(sampleNote.getId(), result.get(0).getId());
+
+        // Verify that getCurrentUser is called twice: once in folder search, once in advanced search
+        verify(authenticationService, times(2)).getCurrentUser();
+        verify(noteRepository).searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("Java"),
+                any(), any(), any(), any(), any(), eq(folderId)
+        );
+    }
+
+    @Test
+    @DisplayName("Should search notes in folder with null request")
+    void shouldSearchNotesInFolderWithNullRequest() throws Exception {
+        // Given
+        Long folderId = 1L;
+
+        // When & Then - expecting an exception when request is null
+        Exception exception = assertThrows(Exception.class, () -> {
+            noteService.searchNotesInFolder(folderId, null);
+        });
+
+        // Verify that the exception is a NullPointerException or similar
+        assertTrue(exception instanceof NullPointerException || 
+                   exception.getCause() instanceof NullPointerException);
+
+        verify(authenticationService).getCurrentUser();
+    }
+
+    @Test
+    @DisplayName("Should return empty list when folder search finds no results")
+    void shouldReturnEmptyListWhenFolderSearchFindsNoResults() throws Exception {
+        // Given
+        Long folderId = 1L;
+        com.notabene.dto.SearchNotesRequest request = new com.notabene.dto.SearchNotesRequest();
+        request.setQuery("nonexistent");
+
+        when(noteRepository.searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("nonexistent"),
+                any(), any(), any(), any(), any(), eq(folderId)
+        )).thenReturn(new ArrayList<>());
+
+        // When
+        List<com.notabene.dto.NoteResponse> result = noteService.searchNotesInFolder(folderId, request);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+
+        // Verify that getCurrentUser is called twice: once in folder search, once in advanced search
+        verify(authenticationService, times(2)).getCurrentUser();
+        verify(noteRepository).searchNotesAdvanced(
+                eq(testUser.getId()),
+                eq("nonexistent"),
+                any(), any(), any(), any(), any(), eq(folderId)
+        );
+    }
 }
