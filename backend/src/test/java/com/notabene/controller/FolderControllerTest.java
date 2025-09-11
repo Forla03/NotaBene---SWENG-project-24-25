@@ -1,9 +1,15 @@
 package com.notabene.controller;
 
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -24,6 +30,8 @@ import com.notabene.dto.FolderDtos.CreateFolderRequest;
 import com.notabene.dto.FolderDtos.FolderDetail;
 import com.notabene.dto.FolderDtos.FolderNoteRef;
 import com.notabene.dto.FolderDtos.FolderSummary;
+import com.notabene.dto.NoteResponse;
+import com.notabene.dto.SearchNotesRequest;
 import com.notabene.service.FolderService;
 import com.notabene.service.NoteService;
 
@@ -38,6 +46,19 @@ class FolderControllerTest {
 
     @MockBean FolderService service;
     @MockBean NoteService noteService;
+
+    private NoteResponse sampleNoteResponse;
+
+    @BeforeEach
+    void setUp() {
+        sampleNoteResponse = new NoteResponse();
+        sampleNoteResponse.setId(1L);
+        sampleNoteResponse.setTitle("Java Programming in Folder");
+        sampleNoteResponse.setContent("Learn Java basics");
+        sampleNoteResponse.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+        sampleNoteResponse.setUpdatedAt(LocalDateTime.of(2025, 1, 5, 10, 0));
+        sampleNoteResponse.setCreatorId(1L);
+    }
 
     @Test
     @WithMockUser
@@ -76,5 +97,157 @@ class FolderControllerTest {
         mvc.perform(get("/api/folders/9"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.notes[0].id").value(77));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/folders/{folderId}/notes/search - Should search notes in folder")
+    void shouldSearchNotesInFolder() throws Exception {
+        // Given
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(get("/api/folders/1/notes/search")
+                .param("query", "Java"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].title").value("Java Programming in Folder"));
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/folders/{folderId}/notes/search - Should search with multiple parameters")
+    void shouldSearchNotesInFolderWithMultipleParameters() throws Exception {
+        // Given
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(get("/api/folders/1/notes/search")
+                .param("query", "Java")
+                .param("tags", "Programming,Tutorial")
+                .param("author", "testuser")
+                .param("createdAfter", "2025-01-01T00:00:00")
+                .param("createdBefore", "2025-01-31T23:59:59"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1));
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/folders/{folderId}/notes/search - Should search with POST request")
+    void shouldSearchNotesInFolderWithPost() throws Exception {
+        // Given
+        SearchNotesRequest request = new SearchNotesRequest();
+        request.setQuery("Java");
+        request.setTags(Arrays.asList("Programming"));
+        request.setAuthor("testuser");
+
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(post("/api/folders/1/notes/search")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].title").value("Java Programming in Folder"));
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/folders/{folderId}/search - Should search with fallback endpoint")
+    void shouldSearchWithFallbackEndpoint() throws Exception {
+        // Given
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(get("/api/folders/1/search")
+                .param("query", "Java"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1));
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/folders/{folderId}/search - Should search with fallback POST endpoint")
+    void shouldSearchWithFallbackPostEndpoint() throws Exception {
+        // Given
+        SearchNotesRequest request = new SearchNotesRequest();
+        request.setQuery("Java");
+
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(post("/api/folders/1/search")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1));
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/folders/{folderId}/notes/search - Should return empty array when no results")
+    void shouldReturnEmptyArrayWhenNoResults() throws Exception {
+        // Given
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(Arrays.asList());
+
+        // When & Then
+        mvc.perform(get("/api/folders/1/notes/search")
+                .param("query", "nonexistent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/folders/{folderId}/notes/search - Should handle date range parameters")
+    void shouldHandleDateRangeParametersInFolderSearch() throws Exception {
+        // Given
+        List<NoteResponse> searchResults = Arrays.asList(sampleNoteResponse);
+        when(noteService.searchNotesInFolder(eq(1L), any(SearchNotesRequest.class)))
+                .thenReturn(searchResults);
+
+        // When & Then
+        mvc.perform(get("/api/folders/1/notes/search")
+                .param("createdAfter", "2025-01-01T00:00:00")
+                .param("createdBefore", "2025-01-31T23:59:59")
+                .param("updatedAfter", "2025-01-01T00:00:00")
+                .param("updatedBefore", "2025-01-31T23:59:59"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+
+        verify(noteService).searchNotesInFolder(eq(1L), any(SearchNotesRequest.class));
     }
 }
