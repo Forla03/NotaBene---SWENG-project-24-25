@@ -10,47 +10,47 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
 
+import java.util.List;
+
+import com.notabene.config.SecurityConfig;
+import com.notabene.config.TokenAuthenticationFilter;
 import com.notabene.config.TokenStore;
-import com.notabene.model.User;
 import com.notabene.service.AuthenticationService;
 import com.notabene.service.NoteService;
 
 @WebMvcTest(controllers = NoteController.class)
-@Import(com.notabene.config.TestSecurityConfig.class)
+@Import({ SecurityConfig.class, TokenAuthenticationFilter.class })
 class TokenAuthenticationFilterTest {
 
     @Autowired
     MockMvc mockMvc;
 
     @MockBean
-    TokenStore tokenStore;              // usato dal filtro
+    TokenStore tokenStore;              
 
     @MockBean
-    AuthenticationService authenticationService; // usato dal filtro/contesto auth
+    AuthenticationService authenticationService; 
 
     @MockBean
-    NoteService noteService;            // dipendenza del controller
+    NoteService noteService;            
 
     @Test
     void protectedEndpoint_noToken_returns401() throws Exception {
         mockMvc.perform(get("/api/notes").accept(MediaType.APPLICATION_JSON))
-               .andExpect(status().isUnauthorized());
+               .andExpect(status().isUnauthorized())
+               .andExpect(unauthenticated());
     }
 
     @Test
     void protectedEndpoint_withValidToken_returns200() throws Exception {
-        // 1) token valido
+        // 1) valid token
         when(tokenStore.isValid("abc123")).thenReturn(true);
         when(tokenStore.getUsername("abc123")).thenReturn("Mario");
 
-        // 2) utente di dominio (NON UserDetails di Spring!)
-        User domainUser = new User();
-        domainUser.setId(1L);
-        domainUser.setUsername("Mario");
-        // imposta altri campi se il tuo AuthenticationService/Controller li usa
-
-        when(authenticationService.getCurrentUser()).thenReturn(domainUser);
+        // 2) Mock the noteService to return empty list
+        when(noteService.getAllNotes()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/notes")
                 .header("X-Auth-Token", "abc123")
