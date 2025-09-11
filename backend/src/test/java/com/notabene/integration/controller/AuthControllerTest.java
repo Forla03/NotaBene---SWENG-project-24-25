@@ -1,4 +1,4 @@
-package com.notabene.controller;
+package com.notabene.integration.controller;
 
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,10 +19,12 @@ import com.notabene.dto.RegisterRequest;
 import com.notabene.dto.RegisterResponse;
 import com.notabene.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DisplayName("AuthController Integration Tests")
 class AuthControllerTest {
 
     @Autowired
