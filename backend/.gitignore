@@ -21,13 +21,6 @@ buildNumber.properties
 # === SPRING BOOT ===
 .spring-boot-devtools.properties
 
-# === SENSITIVE FILES - NEVER COMMIT ===
-application-local.properties
-.env
-.env.local
-.env.*.local
-.env.production
-
 # === DOCKER ===
 docker-compose.override.yml
 
