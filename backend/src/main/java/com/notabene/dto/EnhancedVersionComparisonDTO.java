@@ -24,7 +24,7 @@ public class EnhancedVersionComparisonDTO {
         this.titleDiff = titleDiff;
         this.contentDiff = contentDiff;
         
-        // Determina se ci sono cambiamenti controllando se ci sono segmenti ADDED o REMOVED
+        // Determine if there are changes by checking for ADDED or REMOVED segments
         this.hasChanges = hasSegmentChanges(titleDiff) || hasSegmentChanges(contentDiff);
     }
     

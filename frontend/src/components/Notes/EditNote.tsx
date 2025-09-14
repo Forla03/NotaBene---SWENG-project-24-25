@@ -23,7 +23,7 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Se cambia la nota in props, riallinea lo stato locale (utile quando rientri da altra pagina)
+  // If note changes in props, realign local state (useful when returning from another page)
   useEffect(() => {
     setUpdatedNote({ title: note.title, content: note.content });
     setTags(note.tags ?? []);
@@ -56,11 +56,10 @@ const EditNote: React.FC<EditNoteProps> = ({ note, onNoteUpdated, onCancel }) =>
       const response = await notesApi.updateNote(note.id, {
         title: updatedNote.title,
         content: updatedNote.content,
-        tagIds: tags.map(t => t.id), // ⬅️ inviamo i tag selezionati
+        tagIds: tags.map(t => t.id), // Send selected tags
       });
       onNoteUpdated(response.data);
     } catch (err: any) {
-      console.error('Error updating note:', err);
       if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else if (err.response?.data?.errors) {

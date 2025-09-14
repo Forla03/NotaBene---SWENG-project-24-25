@@ -49,16 +49,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = request.getHeader("X-Auth-Token");
-        log.info("Request to {} - Token present: {}", request.getRequestURI(), token != null);
         
         if (token != null && tokenStore.isValid(token)) {
             String username = tokenStore.getUsername(token);
-            log.info("Authentication successful for user: {}", username);
             var auth = new UsernamePasswordAuthenticationToken(username, null, List.of());
             SecurityContextHolder.getContext().setAuthentication(auth);
             chain.doFilter(request, response);
         } else {
-            log.error("Authentication failed - token: {}, valid: {}", token, token != null ? tokenStore.isValid(token) : "null");
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing token");
         }
     }

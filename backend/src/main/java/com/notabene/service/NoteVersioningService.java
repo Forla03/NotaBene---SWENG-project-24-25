@@ -53,22 +53,12 @@ public class NoteVersioningService {
         boolean contentChanged = !Objects.equals(note.getContent(), newContent);
         boolean hasChanged = titleChanged || contentChanged;
         
-        log.info("Version check for note {}: titleChanged={}, contentChanged={}, hasChanged={}", 
-                noteId, titleChanged, contentChanged, hasChanged);
-        log.debug("Current title: '{}', New title: '{}'", note.getTitle(), newTitle);
-        log.debug("Current content: '{}', New content: '{}'", note.getContent(), newContent);
-        
         if (!hasChanged) {
-            log.info("No changes detected for note {}, skipping version creation", noteId);
             return note;
         }
         
-        log.info("Changes detected for note {}, creating new version", noteId);
-        
         // Create version of current state (before updating)
-        log.debug("About to call versionManager.createVersion for note {} by user {}", noteId, editorUserId);
-        NoteVersion previousVersion = versionManager.createVersion(note, editorUserId);
-        log.debug("versionManager.createVersion returned: {}", previousVersion);
+        versionManager.createVersion(note, editorUserId);
         
         // Update the note
         note.setTitle(newTitle);
@@ -77,7 +67,6 @@ public class NoteVersioningService {
         
         // Set current version pointer to null (indicating the current state is not stored as a version)
         note.setCurrentVersionPointer(null);
-        log.info("Updated current version pointer to null (current version)");
         
         return noteRepository.save(note);
     }
@@ -87,11 +76,9 @@ public class NoteVersioningService {
      */
     @Transactional(readOnly = true)
     public List<NoteVersion> getVersionHistory(Long noteId) {
-        log.info("Getting version history for note: {}", noteId);
         
         // Get all stored versions from database
         List<NoteVersion> storedVersions = noteVersionRepository.findByNoteIdOrderByVersionNumberDesc(noteId);
-        log.info("Found {} stored versions for note {}", storedVersions.size(), noteId);
         
         // Get current note to create virtual current version
         Optional<Note> noteOpt = noteRepository.findById(noteId);
@@ -149,7 +136,6 @@ public class NoteVersioningService {
         allVersions.add(currentVersion);
         allVersions.addAll(storedVersions);
         
-        log.info("Returning {} total versions (1 current + {} stored)", allVersions.size(), storedVersions.size());
         return allVersions;
     }
     
@@ -158,7 +144,6 @@ public class NoteVersioningService {
      * This simply changes which version is "current" and updates note content
      */
     public Note restoreToVersion(Long noteId, Integer versionNumber, Long editorUserId) {
-        log.info("Starting switch of note {} to version {} by user {}", noteId, versionNumber, editorUserId);
         
         Note note = noteRepository.findById(noteId)
             .orElseThrow(() -> new IllegalArgumentException("Note not found with id: " + noteId));
@@ -172,15 +157,12 @@ public class NoteVersioningService {
         NoteVersion targetVersion = noteVersionRepository.findByNoteIdAndVersionNumber(noteId, versionNumber)
             .orElseThrow(() -> new IllegalArgumentException("Version not found: " + versionNumber));
         
-        log.info("Found target version {} for note {}", versionNumber, noteId);
         
         try {
             // Save current state as a version before switching (to preserve current content)
-            log.info("Saving current state as version before switching to version {}", versionNumber);
             versionManager.createVersion(note, editorUserId);
             
             // Update note content to match the target version
-            log.info("Switching note content to version {}", versionNumber);
             note.setTitle(targetVersion.getTitle());
             note.setContent(targetVersion.getContent());
             

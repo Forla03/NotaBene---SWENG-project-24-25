@@ -7,19 +7,19 @@ WORKDIR /app
 # Copia i file di configurazione Maven per sfruttare la cache Docker
 COPY pom.xml .
 
-# Scarica le dipendenze (questo layer sarà cached se pom.xml non cambia)
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
 RUN mvn dependency:go-offline -B
 
-# Copia il codice sorgente
+# Copy source code
 COPY src ./src
 
-# Costruisce l'applicazione
+# Build application
 RUN mvn clean package -DskipTests -B
 
 # === RUNTIME STAGE ===
 FROM eclipse-temurin:17-jre
 
-# Installa curl per healthcheck
+# Install curl for healthcheck
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Crea un utente non-root per sicurezza

@@ -92,7 +92,7 @@
   position: relative;
 }
 
-/* Ogni voce è un "bottone" a tutta larghezza */
+/* Each entry is a full-width "button" */
 .fs-item-btn {
   flex: 1;
   display: grid;

@@ -40,7 +40,7 @@ export default function TagSelector({ value, onChange, placeholder }: Props) {
     await fetchOptions("");
   };
 
-  // Ricerca con debounce quando l'utente digita
+  // Search with debounce when user types
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {

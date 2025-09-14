@@ -163,12 +163,12 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(29, 161, 242, 0.1);
   transition: all 0.3s ease;
-  overflow: hidden; /* Impedisce al contenuto di uscire */
+  overflow: hidden; /* Prevents content from overflowing */
   display: flex;
   flex-direction: column;
-  height: 450px; /* Altezza fissa per uniformità */
+  height: 450px; /* Fixed height for uniformity */
   width: 100%;
-  max-width: 600px; /* Larghezza massima per la singola card */
+  max-width: 600px; /* Maximum width for single card */
 }
 
 .preview-card {
@@ -178,10 +178,10 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(29, 161, 242, 0.1);
   transition: all 0.3s ease;
-  overflow: hidden; /* Impedisce al contenuto di uscire */
+  overflow: hidden; /* Prevents content from overflowing */
   display: flex;
   flex-direction: column;
-  height: 450px; /* Altezza fissa per uniformità */
+  height: 450px; /* Fixed height for uniformity */
 }
 
 .preview-card-single:hover {

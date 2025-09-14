@@ -72,15 +72,14 @@ const Register = ({ navigateTo, onBack, onSuccessfulRegistration }: RegisterProp
         password: formData.password
       });
       
-      // Il token è già salvato in setAuthToken(), dobbiamo solo salvare l'username
+      // The token is already saved in setAuthToken(), we just need to save the username
       localStorage.setItem('username', formData.username);
   
       if (onSuccessfulRegistration) {
         onSuccessfulRegistration(formData.username);
       }
-      navigateTo('home'); // Vai alla home dopo registrazione
+      navigateTo('home'); // Go to home after registration
     } catch (err: any) {
-      console.error("Registration error:", err);
       if (err.response?.status === 409) {
         setErrors({ general: err.response.data?.error || "Email già in uso" });
       } else {

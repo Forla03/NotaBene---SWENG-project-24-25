@@ -18,7 +18,7 @@ public class JdbcCurrentUserResolver implements CurrentUserResolver {
     @Override
     public Long currentUserId() {
         String p = principal();
-        // 1) prova per email (se il principal è un'email)
+        // 1) try by email (if principal is an email)
         Long id = jdbc.query("select id from users where email = ?",
                 rs -> rs.next() ? rs.getLong(1) : null, p);
         if (id != null) return id;

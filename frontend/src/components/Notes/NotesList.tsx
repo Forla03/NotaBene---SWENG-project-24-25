@@ -17,7 +17,7 @@ interface NotesListProps {
 
   // --- NUOVE props per cartelle:
   onAddToFolder?: (note: Note) => void;
-  onRemoveFromFolder?: (note: Note) => void; // attiva solo in vista cartella
+  onRemoveFromFolder?: (note: Note) => void; 
   selectedFolderId?: number | null;
 }
 
@@ -41,7 +41,6 @@ const NotesList = ({
         try { 
           onDeleteNote(id); 
         } catch (err) { 
-          console.error('Error deleting note:', err); 
           showError('Errore', 'Errore nell\'eliminazione della nota'); 
         }
       }
@@ -56,7 +55,6 @@ const NotesList = ({
         try { 
           onCopyNote(id);
         } catch (err) { 
-          console.error('Error copying note:', err); 
           showError('Errore', 'Errore nella copia della nota'); 
         }
       }
@@ -70,9 +68,8 @@ const NotesList = ({
       async () => {
         try {
           await notesApi.leaveSharedNote(id);
-          onNotesUpdated(); // Ricarica la lista delle note
+          onNotesUpdated(); 
         } catch (err) {
-          console.error('Error leaving shared note:', err);
           showError('Errore', 'Errore nel lasciare la nota condivisa');
         }
       }
@@ -84,16 +81,11 @@ const NotesList = ({
   const handleViewVersions = (note: Note) => setSelectedNoteForVersions(note);
   
   const handleVersionRestored = (restoredNote: Note) => {
-    console.log('📥 handleVersionRestored chiamato con:', restoredNote);
-    
-    // Aggiorna la lista delle note ricaricando i dati dal server
-    console.log('🔄 Chiamando onNotesUpdated per ricaricare la lista...');
+    // Update notes list by reloading data from server
     onNotesUpdated();
     
-    // La modale si chiude automaticamente, non serve gestirla qui
+    // Modal closes automatically, no need to handle it here
     // setSelectedNoteForVersions(null);
-    
-    console.log('✅ Nota ripristinata con successo:', restoredNote.title);
   };
   const handleClosePermissions = () => setSelectedNoteForPermissions(null);
   const handlePermissionsUpdated = () => onNotesUpdated();
@@ -116,7 +108,6 @@ const NotesList = ({
       setSearchResults(response.data);
       setIsSearchActive(true);
     } catch (error) {
-      console.error('Error during search:', error);
       setSearchError('Errore durante la ricerca. Riprova più tardi.');
     }
   };
@@ -127,10 +118,9 @@ const NotesList = ({
       
       let response;
       if (selectedFolderId) {
-        // Ricerca nella cartella specifica
         response = await foldersApi.searchNotesInFolder(selectedFolderId, searchRequest);
       } else {
-        // Ricerca globale
+        // global advanced search
         response = await notesApi.advancedSearch(searchRequest);
       }
       
@@ -138,7 +128,6 @@ const NotesList = ({
       setIsSearchActive(true);
       setShowAdvancedSearch(false);
     } catch (error) {
-      console.error('Error during advanced search:', error);
       setSearchError('Errore durante la ricerca avanzata. Riprova più tardi.');
     }
   };
@@ -155,7 +144,7 @@ const NotesList = ({
   const ownedNotes = notes.filter(note => note.isOwner);
   const sharedNotes = notes.filter(note => !note.isOwner);
 
-  // Note da mostrare: se c'è una ricerca attiva, mostra i risultati, altrimenti le note normali
+  // Notes to display: if search is active, show results, otherwise show normal notes
   const displayNotes = searchResults || notes;
   const displayOwnedNotes = searchResults ? displayNotes.filter(note => note.isOwner) : ownedNotes;
   const displaySharedNotes = searchResults ? displayNotes.filter(note => !note.isOwner) : sharedNotes;
@@ -201,14 +190,14 @@ const NotesList = ({
         </button>
       )}
 
-      {/* Elimina nota (solo se è il proprietario) */}
+      {/* Delete note (only if user is the owner) */}
       {note.canDelete && note.isOwner && (
         <button onClick={() => note.id && handleDelete(note.id)} className="delete-btn">
           🗑️ Elimina
         </button>
       )}
 
-      {/* Rimuoviti dalla nota condivisa (solo se NON è il proprietario) */}
+      {/* Leave shared note (only if NOT the owner) */}
       {!note.isOwner && note.id && (
         <button 
           onClick={() => handleLeaveSharedNote(note.id!)} 
@@ -235,7 +224,7 @@ const NotesList = ({
         )}
       </div>
 
-      {/* Barra di ricerca */}
+      {/* Searchbar */}
       <SearchBar
         onSearch={handleSimpleSearch}
         onAdvancedSearch={openAdvancedSearch}
@@ -244,7 +233,7 @@ const NotesList = ({
         placeholder={selectedFolderId ? "Cerca in questa cartella..." : "Cerca nelle note..."}
       />
 
-      {/* Messaggio di errore ricerca */}
+      {/* Search error message */}
       {searchError && (
         <div className="search-error">
           <p style={{ color: 'red', textAlign: 'center', padding: '10px' }}>
@@ -253,7 +242,7 @@ const NotesList = ({
         </div>
       )}
 
-      {/* Indicatore risultati ricerca */}
+      {/* Search results indicator */}
       {isSearchActive && searchResults && (
         <div className="search-results-info">
           <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '10px' }}>
@@ -391,7 +380,7 @@ const NotesList = ({
         />
       )}
 
-      {/* Modale ricerca avanzata */}
+      {/* Modal search advanced */}
       <AdvancedSearch
         isVisible={showAdvancedSearch}
         onSearch={handleAdvancedSearch}

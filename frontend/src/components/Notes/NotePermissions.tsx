@@ -29,7 +29,6 @@ const NotePermissions: React.FC<NotePermissionsProps> = ({ note, onClose, onPerm
       const response = await notesApi.getNotePermissions(note.id);
       setPermissions(response.data);
     } catch (err: any) {
-      console.error('Error loading permissions:', err);
       setError('Errore nel caricamento dei permessi');
     } finally {
       setLoading(false);
@@ -56,7 +55,6 @@ const NotePermissions: React.FC<NotePermissionsProps> = ({ note, onClose, onPerm
       await loadPermissions();
       onPermissionsUpdated();
     } catch (err: any) {
-      console.error('Error adding permission:', err);
       if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
@@ -82,7 +80,6 @@ const NotePermissions: React.FC<NotePermissionsProps> = ({ note, onClose, onPerm
       await loadPermissions();
       onPermissionsUpdated();
     } catch (err: any) {
-      console.error('Error removing permission:', err);
       if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {

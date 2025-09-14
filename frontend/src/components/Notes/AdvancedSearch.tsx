@@ -48,7 +48,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       const tags = await searchTags();
       setAvailableTags(tags);
     } catch (error) {
-      console.error('Error loading tags:', error);
+      // Error loading tags
     }
   };
 

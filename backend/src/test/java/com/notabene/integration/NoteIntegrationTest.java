@@ -118,7 +118,7 @@ class NoteIntegrationTest {
     @Test
     @DisplayName("Should get all notes successfully")
     void shouldGetAllNotesSuccessfully() throws Exception {
-        // Crea una nota di test
+        // Create test note
         Note note = new Note();
         note.setTitle("Test Note");
         note.setContent("Test Content");

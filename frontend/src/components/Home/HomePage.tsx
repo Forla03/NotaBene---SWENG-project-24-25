@@ -46,14 +46,14 @@ const HomePage = ({
           setLatestNote(byCreated[0]);
         }
       } catch (error) {
-        console.error('Error loading notes for preview:', error);
+        // Error loading notes preview
       } finally {
         setLoading(false);
       }
     };
 
     loadLatestNotes();
-  }, [isLoggedIn, refreshTimestamp]); // Aggiunto refreshTimestamp come dependency
+  }, [isLoggedIn, refreshTimestamp]); // Added refreshTimestamp as dependency
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', {

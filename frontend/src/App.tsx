@@ -44,15 +44,14 @@ const App = () => {
     };
   }, []);
 
-  // ✅ Cambia pagina quando l'utente si logga - RIMOSSO: rimaniamo in home
+  // Change page when user logs in - REMOVED: stay on home
   // useEffect(() => {
   //   if (isLoggedIn && username && page !== 'notes') {
-  //     console.log("useEffect: Cambio pagina a notes perché isLoggedIn=true");
   //     setPage('notes');
   //   }
   // }, [isLoggedIn, username, page]);
 
-  // Quando clicco su "Login" da HomePage, cambio pagina in login
+  // When clicking "Login" from HomePage, change to login page
   const handleLoginClick = () => {
     setPage('login');
   };
@@ -73,7 +72,7 @@ const App = () => {
   };
 
   const handleLogout = () => {
-    // ✅ Pulisci tutto lo stato persistente
+    // Pulisci tutto lo stato persistente
     clearAuthToken();
     localStorage.removeItem('username');
     
@@ -94,13 +93,13 @@ const App = () => {
     setIsLoggedIn(true);
     setUsername(newUsername);
     
-    // ✅ Salva username in localStorage per persistenza
+    // Salva username in localStorage per persistenza
     localStorage.setItem('username', newUsername);
     
     setPage('home'); // Vai alla home dopo registrazione, non alle note
   };
 
-  // ✅ Loading state durante inizializzazione
+  //Loading state durante inizializzazione
   if (isLoading) {
     return (
       <div className="App loading-container">

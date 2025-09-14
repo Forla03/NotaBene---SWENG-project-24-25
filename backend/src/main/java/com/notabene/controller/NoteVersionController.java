@@ -52,7 +52,7 @@ public class NoteVersionController {
         try {
             log.info("Getting version history for note: {}", noteId);
             
-            // Verifica che l'utente abbia i permessi per leggere la nota
+            // Check if user has permission to read the note
             User currentUser = authenticationService.getCurrentUser();
             Optional<Note> noteOpt = noteRepository.findByIdWithReadPermission(noteId, currentUser.getId());
             
@@ -79,7 +79,7 @@ public class NoteVersionController {
         try {
             log.info("Getting version {} for note {}", versionNumber, noteId);
             
-            // Verifica che l'utente abbia i permessi per leggere la nota
+            // Check if user has permission to read the note
             User currentUser = authenticationService.getCurrentUser();
             Optional<Note> noteOpt = noteRepository.findByIdWithReadPermission(noteId, currentUser.getId());
             
@@ -149,7 +149,7 @@ public class NoteVersionController {
                 return ResponseEntity.badRequest().build();
             }
             
-            // Verifica che l'utente abbia i permessi per leggere la nota
+            // Check if user has permission to read the note
             User currentUser = authenticationService.getCurrentUser();
             Optional<Note> noteOpt = noteRepository.findByIdWithReadPermission(noteId, currentUser.getId());
             

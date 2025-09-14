@@ -3,12 +3,12 @@
     max-width: 700px;  /* Aumentato da 500px */
     width: 90%;        /* Aggiunto per responsiveness */
     margin: 2rem auto;
-    padding: 2.5rem 3rem;  /* Aumentato padding orizzontale */
+    padding: 2.5rem 3rem;  /* Increased horizontal padding */
     background-color: #ffffff;
-    border-radius: 15px;   /* Aumentato border-radius */
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);  /* Shadow più pronunciata */
-    min-height: 400px;     /* Altezza minima controllata */
-    max-height: 700px;     /* Altezza massima per mantenere proporzioni */
+    border-radius: 15px;   /* Increased border-radius */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);  /* More pronounced shadow */
+    min-height: 400px;     /* Controlled minimum height */
+    max-height: 700px;     /* Maximum height to maintain proportions */
   }
   
   .register-container h2 {

@@ -42,11 +42,10 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onNoteCreated, onCancel }) => {
       const res = await notesApi.createNote({
         title,
         content,
-        tagIds: tags.map(t => t.id), // ⬅️ inviamo i tag selezionati
+        tagIds: tags.map(t => t.id), // Send selected tags
       });
       onNoteCreated(res.data);
     } catch (err: any) {
-      console.error('Error creating note:', err);
       if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else if (err.response?.data?.errors) {

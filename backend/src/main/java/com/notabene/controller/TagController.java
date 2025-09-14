@@ -33,7 +33,7 @@ public class TagController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TagDTO create(@Valid @RequestBody CreateTagRequest req, Authentication auth) {
-        // Con il tuo filtro il principal è una String; se non ti serve, lascia null
+        // With your filter the principal is a String; if not needed, leave null
         return service.create(req.name(), null);
     }
 }

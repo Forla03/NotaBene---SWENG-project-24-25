@@ -86,7 +86,7 @@ class NoteVersionControllerTest {
         testNote.setId(TEST_NOTE_ID);
         testNote.setTitle("Test Note");
         testNote.setContent("Test Content");
-        // il controller verifica il permesso di lettura tramite repository
+        // controller checks read permission via repository
         when(noteRepository.findByIdWithReadPermission(TEST_NOTE_ID, TEST_USER_ID))
                 .thenReturn(Optional.of(testNote));
     }

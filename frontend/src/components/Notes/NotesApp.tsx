@@ -21,12 +21,12 @@ const NotesApp = () => {
 
   // --- Cartelle ---
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
-  const [folderNotes, setFolderNotes] = useState<Note[] | null>(null); // note della cartella selezionata
+  const [folderNotes, setFolderNotes] = useState<Note[] | null>(null); // notes of selected folder
   const [addToFolderNote, setAddToFolderNote] = useState<Note | null>(null);
 
   useEffect(() => { loadNotes(); }, []);
 
-  // ricarica note cartella quando selezionata
+  // reload folder notes when folder selected
   useEffect(() => {
     const loadFolder = async () => {
       if (selectedFolderId == null) {
@@ -35,19 +35,19 @@ const NotesApp = () => {
       }
       try {
         const res = await foldersApi.getFolder(selectedFolderId);
-        // abbiamo solo (id,title) nella risposta; chiediamo i dettagli completi dal tuo /notes per coerenza UI
+        // we only have (id,title) in response; request full details from /notes for UI consistency
         const ids = res.data.notes.map(n => n.id);
         const full = notes.filter(n => n.id && ids.includes(n.id));
-        // fallback: se qualche nota non è in cache, ricarico tutte
+        // fallback: if some notes are not in cache, reload all
         if (full.length !== ids.length) {
-          await loadNotes(); // aggiorna cache
+          await loadNotes(); // update cache
           const full2 = notes.filter(n => n.id && ids.includes(n.id!));
           setFolderNotes(full2);
         } else {
           setFolderNotes(full);
         }
       } catch (e) {
-        console.error(e);
+        // Error loading folder
       }
     };
     loadFolder();
@@ -58,12 +58,9 @@ const NotesApp = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🌐 Effettuando chiamata API getAllNotes...');
       const response = await notesApi.getAllNotes();
-      console.log('📊 Ricevute', response.data.length, 'note dal server');
       setNotes(response.data);
     } catch (err: any) {
-      console.error('❌ Error loading notes:', err);
       setError('Errore nel caricamento delle note. Verifica che il backend sia avviato.');
     } finally {
       setLoading(false);
@@ -76,7 +73,6 @@ const NotesApp = () => {
   const handleNoteCreated = (note: Note) => {
     setNotes(prev => [note, ...prev]);
     setCurrentView('list');
-    // se sono dentro una cartella, non aggiungo automaticamente: l’utente decide col pulsante
   };
 
   const handleNoteUpdated = (updatedNote: Note) => {
@@ -94,7 +90,6 @@ const NotesApp = () => {
         setFolderNotes(folderNotes.filter(n => n.id !== id));
       }
     } catch (err) {
-      console.error('Error deleting note:', err);
       showError('Errore', 'Errore nella cancellazione della nota');
     }
   };
@@ -104,32 +99,28 @@ const NotesApp = () => {
       const response = await notesApi.copyNote(id);
       const copiedNote = response.data;
       
-      // Aggiungi la nota copiata alla lista
+      // Add copied note to list
       setNotes(prev => [copiedNote, ...prev]);
       
-      // Se siamo in vista cartella, non aggiungere la copia alla cartella automaticamente
-      // L'utente potrà farlo manualmente se lo desidera
+      // If in folder view, don't automatically add copy to folder
+      // User can do it manually if desired
       
       showSuccess('Successo', 'Nota copiata con successo!');
     } catch (err) {
-      console.error('Error copying note:', err);
       showError('Errore', 'Errore nella copia della nota');
     }
   };
 
   const handleNotesUpdated = async () => { 
-    console.log('🔄 handleNotesUpdated chiamato, ricaricando note...');
     await loadNotes(); 
-    console.log('✅ Note ricaricate con successo');
   };
 
-  // --- Cartelle: aggiungi / rimuovi
   const openAddToFolder = (note: Note) => setAddToFolderNote(note);
   const closeAddToFolder = () => setAddToFolderNote(null);
 
   const handleAddedToFolder = async (folderId: number) => {
     if (selectedFolderId === folderId) {
-      // ricarica vista cartella corrente
+      // Reload current folder view
       const res = await foldersApi.getFolder(folderId);
       const ids = res.data.notes.map(n => n.id);
       setFolderNotes(notes.filter(n => n.id && ids.includes(n.id)));

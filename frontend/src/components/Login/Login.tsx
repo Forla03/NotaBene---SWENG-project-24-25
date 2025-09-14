@@ -17,16 +17,15 @@ export default function Login({ onLoginSuccess, onCancel }: LoginProps) {
     setError(null);
     
     try {
-      // Chiama login e aspetta token
+      // Call login and wait for token
       await authApi.login({ email, password });
       
-      // Il token è già salvato in setAuthToken(), dobbiamo solo salvare l'username
+      // The token is already saved in setAuthToken(), we just need to save the username
       const username = email.split("@")[0];
       localStorage.setItem('username', username);
       
-      onLoginSuccess(username); // aggiorna stato nell'app
+      onLoginSuccess(username); // update app state
     } catch (err: any) {
-      console.error("Login error:", err);
       if (err.response?.status === 403) {
         setError("Accesso negato. Verifica le credenziali.");
       } else if (err.response?.status === 401) {

@@ -68,12 +68,12 @@ export interface Note {
   content: string;
   createdAt?: string;
   updatedAt?: string;
-  lastModifiedAt?: string;  // Data ultima modifica
-  lastModifiedBy?: number;  // ID utente che ha fatto l'ultima modifica
-  lastModifiedByUsername?: string; // Username dell'utente che ha fatto l'ultima modifica
+  lastModifiedAt?: string;  // Last modification date
+  lastModifiedBy?: number;  // ID of user who made the last modification
+  lastModifiedByUsername?: string; // Username of user who made the last modification
   creatorId?: number;
-  currentVersion?: number;  // Versione corrente della nota
-  currentVersionPointer?: number; // Quale versione è attualmente visualizzata
+  currentVersion?: number;  // Current version of the note
+  currentVersionPointer?: number; // Which version is currently displayed
   readers?: string[];
   writers?: string[];
   isShared?: boolean;
@@ -94,13 +94,13 @@ export interface NoteVersion {
   readers: number[];
   writers: number[];
   createdBy: number;
-  createdByUsername?: string; // Username dell'utente che ha creato la versione
+  createdByUsername?: string; // Username of user who created the version
   noteCreatorId: number;
   createdAt: string;
   originalCreatedAt: string;
   originalUpdatedAt: string;
-  isRestored: boolean; // Indica se questa versione è stata ripristinata
-  restoredFromVersion?: number; // Da quale versione è stata ripristinata (se applicabile)
+  isRestored: boolean; // Indicates if this version has been restored
+  restoredFromVersion?: number; // From which version it was restored (if applicable)
 }
 
 // ✅ ENHANCED COMPARISON TYPES
@@ -181,14 +181,14 @@ export const notesApi = {
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
   copyNote: (id: number) => api.post<Note>(`/notes/${id}/copy`),
   
-  // Cerca note - metodi semplici per compatibilità
+  // Search notes - simple methods for compatibility
   searchNotes: (query: string) => api.get<Note[]>(`/notes/search?q=${encodeURIComponent(query)}`),
   
-  // Ricerca avanzata - nuovo
+  // Advanced search
   advancedSearch: (searchRequest: SearchNotesRequest) => 
     api.post<Note[]>('/notes/search/advanced', searchRequest),
   
-  // Filtra per priorità
+  // Filter by priority
   getNotesByPriority: (priority: number) => api.get<Note[]>(`/notes/priority/${priority}`),
 
   // ====================
@@ -323,13 +323,10 @@ export async function getSpecificVersion(noteId: number, versionNumber: number):
  * Restore a note to a specific version
  */
 export async function restoreToVersion(noteId: number, versionNumber: number): Promise<Note> {
-  console.log(`🔄 API: Chiamando restoreToVersion per nota ${noteId}, versione ${versionNumber}`);
   try {
     const response = await api.post<Note>(`/notes/${noteId}/versions/${versionNumber}/restore`);
-    console.log('✅ API: Restore completato con successo:', response.data);
     return response.data;
   } catch (error) {
-    console.error('❌ API: Errore durante restore:', error);
     throw error;
   }
 }

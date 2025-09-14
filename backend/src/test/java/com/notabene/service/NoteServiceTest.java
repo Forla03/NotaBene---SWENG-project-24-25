@@ -102,7 +102,7 @@ class NoteServiceTest {
                 return java.util.Optional.of(u);
             });
 
-        // Se i test coprono create/update, il service di versioning deve restituire una Nota valida
+        // If tests cover create/update, versioning service must return a valid Note
         lenient().when(noteVersioningService.updateNoteWithVersioning(anyLong(), anyString(), anyString(), anyLong()))
             .thenAnswer(inv -> {
                 Long id = inv.getArgument(0, Long.class);

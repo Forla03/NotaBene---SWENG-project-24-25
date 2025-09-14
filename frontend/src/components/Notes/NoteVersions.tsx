@@ -10,7 +10,7 @@ interface NoteVersionsProps {
   currentNote: Note;
   onVersionRestored?: (restoredNote: Note) => void;
   onClose: () => void;
-  onNoteUpdated?: () => void; // Aggiungiamo callback per ricaricare la nota corrente
+  onNoteUpdated?: () => void; // Add callback to reload current note
 }
 
 const NoteVersions: React.FC<NoteVersionsProps> = ({ 
@@ -43,7 +43,6 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
       setVersions(versionHistory);
     } catch (err) {
       setError('Errore nel caricamento dello storico versioni');
-      console.error('Error loading version history:', err);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +55,6 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
       setSelectedVersion(fullVersion);
     } catch (err) {
       setError('Errore nel caricamento della versione');
-      console.error('Error loading version:', err);
     }
   };
 
@@ -71,7 +69,7 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
   };
 
   const handleRestore = async (versionNumber: number) => {
-    // Verifica se stiamo tentando di ripristinare la versione corrente
+    // Check if we are trying to restore the current version
     const currentVersionNumber = getCurrentVersionNumber();
     if (versionNumber === currentVersionNumber) {
       showInfo(
@@ -89,35 +87,27 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
           setIsRestoring(true);
           setError(null);
           
-          console.log('🔄 Switching to version', versionNumber, 'for note', noteId);
+          const restoredNote = await restoreToVersion(noteId, versionNumber);
       
-      const restoredNote = await restoreToVersion(noteId, versionNumber);
+          // Update current note in parent component
+          if (onVersionRestored) {
+            onVersionRestored(restoredNote);
+          }
       
-      console.log('✅ Switched to version successfully:', restoredNote);
+          // Reload version history to update data
+          await loadVersionHistory();
       
-      // Aggiorna la nota corrente nel componente padre
-      if (onVersionRestored) {
-        console.log('📞 Calling onVersionRestored in parent component...');
-        onVersionRestored(restoredNote);
-      }
+          // Mostra messaggio di successo
+          showInfo('Successo', `Ora stai visualizzando la versione ${versionNumber}! L'elenco delle versioni rimane invariato.`);
       
-      // Ricarica lo storico versioni per aggiornare i dati
-      console.log('🔄 Reloading version history...');
-      await loadVersionHistory();
+          // Chiudi automaticamente la modale per mostrare immediatamente il risultato
+          onClose();
       
-      // Mostra messaggio di successo
-      showInfo('Successo', `Ora stai visualizzando la versione ${versionNumber}! L'elenco delle versioni rimane invariato.`);
-      
-      // Chiudi automaticamente la modale per mostrare immediatamente il risultato
-      console.log('❌ Closing modal...');
-      onClose();
-      
-    } catch (err) {
-      setError('Errore nel cambio versione');
-      console.error('❌ Error switching version:', err);
-    } finally {
-      setIsRestoring(false);
-    }
+        } catch (err) {
+          setError('Errore nel cambio versione');
+        } finally {
+          setIsRestoring(false);
+        }
       }
     );
   };
@@ -136,11 +126,8 @@ const NoteVersions: React.FC<NoteVersionsProps> = ({
       setShowEnhancedComparison(true);
       setCompareWithVersion(null);
       
-      console.log('Confronto ricevuto:', enhancedResult);
-      
     } catch (err) {
       setError('Errore nel confronto versioni');
-      console.error('Error in enhanced comparison:', err);
     }
   };
 

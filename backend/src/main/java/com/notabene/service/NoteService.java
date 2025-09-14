@@ -48,10 +48,8 @@ public class NoteService {
     User currentUser = authenticationService.getCurrentUser();
     log.info("Creating note for user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
 
-    // crea entity
     Note note = new Note(request.getTitle(), request.getContent(), currentUser);
 
-    // TAGS: aggiungi PRIMA del save
     List<Long> ids = Optional.ofNullable(request.getTagIds()).orElseGet(List::of);
     if (!ids.isEmpty()) {
         var unique = new HashSet<>(ids);
@@ -59,13 +57,12 @@ public class NoteService {
         if (tags.size() != unique.size()) {
             throw new IllegalArgumentException("Alcuni tagId non esistono");
         }
-        note.getTags().addAll(tags); // usa la collection esistente
+        note.getTags().addAll(tags); 
     }
 
     Note saved = noteRepository.save(note);
     log.info("Note created successfully with ID: {}", saved.getId());
 
-    // Crea la prima versione della nota appena creata
     noteVersioningService.updateNoteWithVersioning(
         saved.getId(), saved.getTitle(), saved.getContent(), currentUser.getId());
 
@@ -146,7 +143,7 @@ public class NoteService {
     Note note = noteRepository.findByIdWithWritePermission(id, currentUser.getId())
         .orElseThrow(() -> new NoteNotFoundException("Note not found with id: " + id + " for current user or user has no write permission"));
 
-    // Usa il servizio di versioning per aggiornare la nota (crea automaticamente la versione)
+    // Use versioning service to update note (automatically creates version)
     String newTitle = request.getTitle() != null && !request.getTitle().trim().isEmpty() 
         ? request.getTitle() : note.getTitle();
     String newContent = request.getContent() != null && !request.getContent().trim().isEmpty() 
@@ -155,7 +152,7 @@ public class NoteService {
     Note updated = noteVersioningService.updateNoteWithVersioning(
         id, newTitle, newContent, currentUser.getId());
 
-    // TAGS: sincronizza SOLO se il campo è presente (null = non toccare)
+    // TAGS: synchronize ONLY if field is present (null = don't touch)
     if (request.getTagIds() != null) {
         var unique = new HashSet<>(request.getTagIds());
         var tags = new HashSet<>(tagRepository.findAllById(unique));
